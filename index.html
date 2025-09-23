@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>土星星环回忆</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #000;
+            overflow: hidden;
+            font-family: 'Arial', sans-serif;
+            cursor: crosshair;
+        }
+
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, #000 0%, #1a1a2e 50%, #16213e 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            transition: opacity 2s ease-out;
+        }
+
+        #loading-screen.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .loading-text {
+            color: #fff;
+            font-size: 24px;
+            text-align: center;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        #canvas-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #photo-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            background: rgba(0, 0, 0, 0.9);
+            border: 2px solid #fff;
+            border-radius: 20px;
+            padding: 20px;
+            z-index: 100;
+            transition: transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            width: 75vw;
+            height: 75vh;
+            max-width: 75vw;
+            max-height: 75vh;
+        }
+
+        #photo-modal.show {
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        #photo-modal img {
+            width: 100%;
+            height: calc(100% - 60px);
+            object-fit: contain;
+            border-radius: 10px;
+            display: block;
+        }
+
+
+        .modal-title {
+            color: #fff;
+            text-align: center;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .instructions {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255, 255, 255, 0.7);
+            text-align: center;
+            font-size: 14px;
+            z-index: 10;
+            animation: fadeInOut 3s infinite;
+        }
+
+        .control-panel {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #fff;
+            border-radius: 10px;
+            padding: 15px;
+            color: #fff;
+            font-size: 14px;
+            z-index: 50;
+            min-width: 220px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .control-panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .control-panel h3 {
+            margin: 0;
+            font-size: 16px;
+            color: #ffd700;
+        }
+
+        .toggle-details-btn {
+            background: rgba(255, 215, 0, 0.2);
+            border: 1px solid #ffd700;
+            color: #ffd700;
+            border-radius: 4px;
+            width: 24px;
+            height: 24px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .toggle-details-btn:hover {
+            background: rgba(255, 215, 0, 0.4);
+            transform: scale(1.1);
+        }
+
+        .detailed-controls {
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+
+        .detailed-controls.collapsed {
+            max-height: 0;
+            opacity: 0;
+        }
+
+        .control-group {
+            margin-bottom: 10px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 12px;
+        }
+
+        .control-group input[type="range"] {
+            width: 100%;
+            margin-bottom: 5px;
+        }
+
+        .control-group .value {
+            font-size: 12px;
+            color: #ffd700;
+            text-align: center;
+        }
+
+        @keyframes fadeInOut {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 0.8; }
+        }
+
+        @media (max-width: 768px) {
+            .loading-text {
+                font-size: 18px;
+            }
+            
+            #photo-modal {
+                width: 90vw;
+                height: 80vh;
+                max-width: 90vw;
+                max-height: 80vh;
+                padding: 15px;
+            }
+            
+            .modal-title {
+                font-size: 16px;
+            }
+            
+            .instructions {
+                font-size: 12px;
+                bottom: 10px;
+            }
+            
+            .control-panel {
+                top: 10px;
+                right: 10px;
+                padding: 10px;
+                min-width: 180px;
+                font-size: 12px;
+                max-height: 70vh;
+            }
+            
+            .control-panel h3 {
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="loading-screen">
+        <div class="loading-text">
+            <div>正在加载土星星环...</div>
+            <div style="font-size: 16px; margin-top: 10px; opacity: 0.7;">点击星星碎片查看回忆</div>
+        </div>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <div id="photo-modal">
+        <div class="modal-title" id="modal-title">回忆照片</div>
+        <img id="modal-image" src="" alt="回忆照片">
+    </div>
+
+    <div class="control-panel">
+        <div class="control-panel-header">
+            <h3>🌟 控制面板</h3>
+            <button id="toggleDetails" class="toggle-details-btn">+</button>
+        </div>
+        <div id="detailed-controls" class="detailed-controls collapsed">
+        <div class="control-group">
+            <label>旋转速度 (圈/分钟)</label>
+            <input type="range" id="rotationSpeed" min="0" max="2" step="0.1" value="0.3">
+            <div class="value" id="rotationValue">0.3 圈/分钟</div>
+        </div>
+        <div class="control-group">
+            <label>相机距离</label>
+            <input type="range" id="cameraDistance" min="8" max="30" step="0.5" value="13.5">
+            <div class="value" id="cameraDistanceValue">13.5</div>
+        </div>
+        <div class="control-group">
+            <label>相机高度</label>
+            <input type="range" id="cameraHeight" min="0" max="25" step="0.5" value="5">
+            <div class="value" id="cameraHeightValue">5</div>
+        </div>
+        <div class="control-group">
+            <label>相机FOV</label>
+            <input type="range" id="cameraFOV" min="10" max="60" step="1" value="49">
+            <div class="value" id="cameraFOVValue">49°</div>
+        </div>
+        <div class="control-group">
+            <label>向光角度</label>
+            <input type="range" id="saturnPosition" min="-60" max="60" step="5" value="-60">
+            <div class="value" id="saturnPositionValue">-60°</div>
+        </div>
+        <div class="control-group">
+            <label>星球屏幕位置 X</label>
+            <input type="range" id="planetScreenX" min="0" max="1" step="0.01" value="0.93">
+            <div class="value" id="planetScreenXValue">0.93</div>
+        </div>
+        <div class="control-group">
+            <label>星球屏幕位置 Y</label>
+            <input type="range" id="planetScreenY" min="0" max="1" step="0.01" value="0.39">
+            <div class="value" id="planetScreenYValue">0.39</div>
+        </div>
+        <div class="control-group">
+            <label>星星碎片数量</label>
+            <input type="range" id="starFragmentCount" min="50" max="500" step="10" value="200">
+            <div class="value" id="starFragmentCountValue">200</div>
+        </div>
+        <div class="control-group">
+            <label>内环碎片比例</label>
+            <input type="range" id="innerRingRatio" min="0" max="1" step="0.1" value="0.05">
+            <div class="value" id="innerRingRatioValue">5%</div>
+        </div>
+        <div class="control-group">
+            <label>中内环碎片比例</label>
+            <input type="range" id="middleRingRatio" min="0" max="1" step="0.1" value="0.3">
+            <div class="value" id="middleRingRatioValue">30%</div>
+        </div>
+        <div class="control-group">
+            <label>中外环碎片比例</label>
+            <input type="range" id="outerRingRatio" min="0" max="1" step="0.1" value="0.55">
+            <div class="value" id="outerRingRatioValue">55%</div>
+        </div>
+        <div class="control-group">
+            <label>外环碎片比例</label>
+            <input type="range" id="outerMostRingRatio" min="0" max="1" step="0.1" value="0.1">
+            <div class="value" id="outerMostRingRatioValue">10%</div>
+        </div>
+        <div class="control-group">
+            <label>
+                <input type="checkbox" id="ringVisibility" checked style="margin-right: 5px;">
+                显示星环主体
+            </label>
+        </div>
+        <div class="control-group">
+            <label>
+                <input type="checkbox" id="photoThumbnails" style="margin-right: 5px;">
+                显示照片缩略图
+            </label>
+        </div>
+        <div class="control-group">
+            <label style="color: #4CAF50; font-size: 11px;">
+                📱 陀螺仪视差效果已启用<br>
+                <span style="color: #888; font-size: 10px;">倾斜设备查看背景移动效果</span>
+            </label>
+        </div>
+        </div>
+    </div>
+
+    <div class="instructions">
+        点击星星碎片查看回忆照片 • 点击任意地方关闭照片 • 按 'C' 键切换控制面板 • 倾斜设备体验陀螺仪视差效果
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
