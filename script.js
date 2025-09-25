@@ -14,12 +14,12 @@ class SaturnRingScene {
         this.isPhotoOpen = false;
         this.photoIndexCounter = 0; // 用于照片索引分配
         
-        // 旋转速度参数：1分钟转几圈
-        this.rotationSpeed = 0.1; // 默认0.3圈/分钟
+        // 旋转速度参数：1分钟转几圈（默认不转）
+        this.rotationSpeed = 0.1; // 默认0圈/分钟
         
         // 相机参数
-        this.cameraDistance = 13.5; // 相机距离（从原点算起）
-        this.cameraHeight = 3.5; // 相机高度
+        this.cameraDistance = 16; // 相机距离（从原点算起）
+        this.cameraHeight = 0.5; // 相机高度
         this.cameraFOV = 49; // 相机视野角度
         // this.saturnPositionAngle = 10; // 向光角度（度）- 已移除
         
@@ -27,13 +27,13 @@ class SaturnRingScene {
         this.planetScreenPosition = new THREE.Vector2(0.93, 0.39); // 默认屏幕位置
         
         // 控制面板显示状态
-        this.isControlPanelOpen = true; // 默认打开
+        this.isControlPanelOpen = false; // 默认打开
         
         // 详细设置显示状态
         this.isDetailedControlsOpen = false; // 默认收起
         
         // 星星碎片数量
-        this.starFragmentCount = 500; // 默认500个碎片
+        this.starFragmentCount = 500; // 默认200个碎片
         
         // 星环主体显示状态
         this.isRingVisible = true; //默认打开
@@ -59,10 +59,10 @@ class SaturnRingScene {
         
         // 四个环的碎片比例
         this.ringFragmentRatios = {
-            inner: 0.05,    // 内环：5%
-            middle: 0.15,    // 中内环：30%
-            outer: 0.65,    // 中外环：55%
-            outerMost: 0.15  // 外环：10%
+            inner: 0.2,    // 内环：5%
+            middle: 0.3,    // 中内环：30%
+            outer: 0.55,    // 中外环：55%
+            outerMost: 0.7  // 外环：10%
         };
                 // 星星碎片分布控制：0=完全均匀，1=完全随机
         this.starFragmentDistribution = 1; // 默认中等分布
@@ -86,6 +86,7 @@ class SaturnRingScene {
         });
         this.animate();
         this.setupEventListeners();
+        this.initControlPanel(); // 初始化控制面板状态
     }
 
     init() {
@@ -482,6 +483,16 @@ class SaturnRingScene {
         const controlPanel = document.querySelector('.control-panel');
         if (controlPanel) {
             controlPanel.style.display = this.isControlPanelOpen ? 'block' : 'none';
+            console.log(`控制面板${this.isControlPanelOpen ? '显示' : '隐藏'}`);
+        }
+    }
+    
+    // 初始化控制面板状态
+    initControlPanel() {
+        const controlPanel = document.querySelector('.control-panel');
+        if (controlPanel) {
+            controlPanel.style.display = this.isControlPanelOpen ? 'block' : 'none';
+            console.log(`控制面板初始化：${this.isControlPanelOpen ? '显示' : '隐藏'}`);
         }
     }
     

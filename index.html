@@ -118,6 +118,7 @@
             min-width: 220px;
             max-height: 80vh;
             overflow-y: auto;
+            display: block; /* 确保控制面板默认显示 */
         }
 
         .control-panel-header {
@@ -157,6 +158,8 @@
         .detailed-controls {
             transition: all 0.3s ease;
             overflow: hidden;
+            max-height: 1000px; /* 设置一个足够大的最大高度 */
+            opacity: 1;
         }
 
         .detailed-controls.collapsed {
@@ -250,8 +253,8 @@
         <div id="detailed-controls" class="detailed-controls collapsed">
         <div class="control-group">
             <label>旋转速度 (圈/分钟)</label>
-            <input type="range" id="rotationSpeed" min="0" max="2" step="0.1" value="0.3">
-            <div class="value" id="rotationValue">0.3 圈/分钟</div>
+            <input type="range" id="rotationSpeed" min="0" max="2" step="0.1" value="0">
+            <div class="value" id="rotationValue">0 圈/分钟</div>
         </div>
         <div class="control-group">
             <label>相机距离</label>
@@ -267,11 +270,6 @@
             <label>相机FOV</label>
             <input type="range" id="cameraFOV" min="10" max="60" step="1" value="49">
             <div class="value" id="cameraFOVValue">49°</div>
-        </div>
-        <div class="control-group">
-            <label>向光角度</label>
-            <input type="range" id="saturnPosition" min="-60" max="60" step="5" value="-60">
-            <div class="value" id="saturnPositionValue">-60°</div>
         </div>
         <div class="control-group">
             <label>星球屏幕位置 X</label>
@@ -334,6 +332,6 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="script-github-pages.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
