@@ -1411,16 +1411,28 @@ class SaturnRingScene {
     }
 
     setupEventListeners() {
-        // 鼠标点击事件
-        window.addEventListener('click', (event) => {
+        // 处理点击/触摸事件的通用函数
+        const handleInteraction = (event) => {
             // 如果照片已经打开，点击任意地方关闭照片
             if (this.isPhotoOpen) {
                 this.hidePhoto();
                 return;
             }
             
-            this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-            this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            // 获取触摸或鼠标坐标
+            let clientX, clientY;
+            if (event.touches && event.touches.length > 0) {
+                // 触摸事件
+                clientX = event.touches[0].clientX;
+                clientY = event.touches[0].clientY;
+            } else {
+                // 鼠标事件
+                clientX = event.clientX;
+                clientY = event.clientY;
+            }
+            
+            this.mouse.x = (clientX / window.innerWidth) * 2 - 1;
+            this.mouse.y = -(clientY / window.innerHeight) * 2 + 1;
             
             this.raycaster.setFromCamera(this.mouse, this.camera);
             const intersects = this.raycaster.intersectObjects(this.starFragments);
@@ -1429,6 +1441,36 @@ class SaturnRingScene {
                 const clickedFragment = intersects[0].object;
                 this.showPhoto(clickedFragment);
             }
+        };
+
+        // 鼠标点击事件
+        window.addEventListener('click', handleInteraction);
+        
+        // 触摸事件
+        window.addEventListener('touchstart', (event) => {
+            // 阻止默认的触摸行为（如滚动、缩放等）
+            event.preventDefault();
+            handleInteraction(event);
+        }, { passive: false });
+        
+        // 防止触摸时的默认行为
+        window.addEventListener('touchmove', (event) => {
+            event.preventDefault();
+        }, { passive: false });
+        
+        // 防止双击缩放
+        let lastTouchEnd = 0;
+        window.addEventListener('touchend', (event) => {
+            const now = (new Date()).getTime();
+            if (now - lastTouchEnd <= 300) {
+                event.preventDefault();
+            }
+            lastTouchEnd = now;
+        }, false);
+        
+        // 防止长按选择文本
+        window.addEventListener('contextmenu', (event) => {
+            event.preventDefault();
         });
 
         // 窗口大小调整

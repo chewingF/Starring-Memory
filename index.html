@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, minimum-scale=1.0">
     <title>土星星环回忆</title>
     <style>
         * {
@@ -16,6 +16,14 @@
             overflow: hidden;
             font-family: 'Arial', sans-serif;
             cursor: crosshair;
+            /* 移动端优化 */
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
         }
 
         #loading-screen {
@@ -328,7 +336,7 @@
     </div>
 
     <div class="instructions">
-        点击星星碎片查看回忆照片 • 点击任意地方关闭照片 • 按 'C' 键切换控制面板 • 倾斜设备体验陀螺仪视差效果
+        点击/触摸星星碎片查看回忆照片 • 点击/触摸任意地方关闭照片 • 按 'C' 键切换控制面板 • 倾斜设备体验陀螺仪视差效果
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
