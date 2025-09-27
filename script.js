@@ -79,6 +79,10 @@ class SaturnRingScene {
         this.isGyroscopeSupported = false;
         this.gyroscopePermissionGranted = false;
         
+        // 流星动画相关属性
+        this.meteorAnimations = new Map(); // 存储正在进行的流星动画
+        this.animationId = 0; // 动画ID计数器
+        
         this.init();
         this.loadPhotos().then(() => {
             // 照片加载完成后再创建星星碎片
@@ -1217,6 +1221,168 @@ class SaturnRingScene {
         texture.needsUpdate = true;
     }
 
+    // 创建流星飞行动画
+    createMeteorAnimation(fragment, targetPosition, duration = 1.0, onComplete = null) {
+        const animationId = ++this.animationId;
+        const startPosition = fragment.position.clone();
+        const startTime = performance.now();
+        
+        // 计算弧线轨迹的控制点
+        const midPoint = new THREE.Vector3().addVectors(startPosition, targetPosition).multiplyScalar(0.5);
+        // 在Y轴上增加高度，形成弧线
+        midPoint.y += 3; // 弧线高度
+        // 在X轴上偏移，让弧线向同一方向延伸
+        midPoint.x += (startPosition.x > 0 ? 4 : -4); // 右侧向右偏移，左侧向左偏移
+        
+        const animation = {
+            id: animationId,
+            fragment: fragment,
+            startPosition: startPosition,
+            targetPosition: targetPosition,
+            midPoint: midPoint,
+            startTime: startTime,
+            duration: duration * 1000, // 转换为毫秒
+            onComplete: onComplete,
+            isActive: true
+        };
+        
+        this.meteorAnimations.set(animationId, animation);
+        return animationId;
+    }
+
+    // 更新流星动画
+    updateMeteorAnimations() {
+        const currentTime = performance.now();
+        
+        for (const [id, animation] of this.meteorAnimations) {
+            if (!animation.isActive) continue;
+            
+            const elapsed = currentTime - animation.startTime;
+            const progress = Math.min(elapsed / animation.duration, 1);
+            
+            // 使用缓动函数让动画更自然
+            const easeProgress = this.easeInOutCubic(progress);
+            
+            // 使用二次贝塞尔曲线计算位置
+            const t = easeProgress;
+            const oneMinusT = 1 - t;
+            
+            // 二次贝塞尔曲线: B(t) = (1-t)²P₀ + 2(1-t)tP₁ + t²P₂
+            const position = new THREE.Vector3();
+            position.addScaledVector(animation.startPosition, oneMinusT * oneMinusT);
+            position.addScaledVector(animation.midPoint, 2 * oneMinusT * t);
+            position.addScaledVector(animation.targetPosition, t * t);
+            
+            // 更新碎片位置
+            animation.fragment.position.copy(position);
+            
+            // 添加旋转效果，让碎片在飞行时旋转
+            const rotationSpeed = 0.15;
+            animation.fragment.rotation.x += rotationSpeed;
+            animation.fragment.rotation.y += rotationSpeed;
+            animation.fragment.rotation.z += rotationSpeed * 0.5;
+            
+            // 添加缩放效果，飞行时稍微放大
+            const scale = 1 + Math.sin(progress * Math.PI) * 0.4;
+            animation.fragment.scale.setScalar(scale);
+            
+            // 添加发光效果和拖尾效果
+            if (animation.isReturnAnimation) {
+                this.addMeteorReturnTrailEffect(animation.fragment, progress);
+            } else {
+                this.addMeteorTrailEffect(animation.fragment, progress);
+            }
+            
+            // 检查动画是否完成
+            if (progress >= 1) {
+                animation.isActive = false;
+                this.meteorAnimations.delete(id);
+                
+                // 恢复原始缩放
+                animation.fragment.scale.setScalar(1);
+                
+                // 恢复原始发光
+                if (animation.fragment.material.emissive) {
+                    animation.fragment.material.emissiveIntensity = 0;
+                }
+                
+                // 执行完成回调
+                if (animation.onComplete) {
+                    animation.onComplete();
+                }
+            }
+        }
+    }
+
+    // 缓动函数 - 三次贝塞尔缓动
+    easeInOutCubic(t) {
+        return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    }
+
+    // 添加流星拖尾效果
+    addMeteorTrailEffect(fragment, progress) {
+        // 增强发光效果
+        if (fragment.material.emissive) {
+            const intensity = Math.sin(progress * Math.PI * 3) * 0.3 + 0.7;
+            fragment.material.emissive.setHex(0xffd700);
+            fragment.material.emissiveIntensity = intensity * 0.5;
+        }
+        
+        // 增强透明度变化
+        const opacity = 0.9 + Math.sin(progress * Math.PI * 2) * 0.1;
+        fragment.material.opacity = opacity;
+        
+        // 增强光泽度
+        fragment.material.shininess = 200 + Math.sin(progress * Math.PI * 4) * 50;
+    }
+
+    // 添加流星返回拖尾效果
+    addMeteorReturnTrailEffect(fragment, progress) {
+        // 返回时的发光效果（稍微柔和一些）
+        if (fragment.material.emissive) {
+            const intensity = Math.sin(progress * Math.PI * 2) * 0.2 + 0.6;
+            fragment.material.emissive.setHex(0xffa500); // 橙色发光
+            fragment.material.emissiveIntensity = intensity * 0.3;
+        }
+        
+        // 返回时的透明度变化（逐渐恢复）
+        const opacity = 0.7 + Math.sin(progress * Math.PI) * 0.2;
+        fragment.material.opacity = opacity;
+        
+        // 返回时的光泽度（逐渐恢复）
+        fragment.material.shininess = 150 + Math.sin(progress * Math.PI * 2) * 30;
+    }
+
+    // 创建流星返回动画
+    createMeteorReturnAnimation(fragment, originalPosition, duration = 1.0, onComplete = null) {
+        const animationId = ++this.animationId;
+        const startPosition = fragment.position.clone();
+        const startTime = performance.now();
+        
+        // 计算返回弧线轨迹的控制点
+        const midPoint = new THREE.Vector3().addVectors(startPosition, originalPosition).multiplyScalar(0.5);
+        // 在Y轴上增加高度，形成返回弧线
+        midPoint.y += 2; // 返回弧线高度
+        // 在X轴上偏移，让返回弧线向同一方向延伸
+        midPoint.x += (startPosition.x > 0 ? 3 : -3); // 右侧向右偏移，左侧向左偏移
+        
+        const animation = {
+            id: animationId,
+            fragment: fragment,
+            startPosition: startPosition,
+            targetPosition: originalPosition,
+            midPoint: midPoint,
+            startTime: startTime,
+            duration: duration * 1000, // 转换为毫秒
+            onComplete: onComplete,
+            isActive: true,
+            isReturnAnimation: true // 标记这是返回动画
+        };
+        
+        this.meteorAnimations.set(animationId, animation);
+        return animationId;
+    }
+
     async loadPhotos() {
         try {
             console.log('开始加载照片列表...');
@@ -1700,6 +1866,58 @@ class SaturnRingScene {
             return;
         }
         
+        // 标记碎片为已点击
+        fragment.userData.isClicked = true;
+        
+        // 记录星星碎片的相对位置和父节点
+        const originalParent = fragment.parent;
+        const relativePosition = fragment.position.clone();
+        const relativeRotation = fragment.rotation.clone();
+        const relativeScale = fragment.scale.clone();
+        
+        // 先计算世界位置（在脱离父节点之前）
+        const worldPosition = new THREE.Vector3();
+        fragment.getWorldPosition(worldPosition);
+        
+        // 将星星碎片脱离父节点
+        originalParent.remove(fragment);
+        this.scene.add(fragment);
+        
+        // 设置世界位置，保持位置不变
+        fragment.position.copy(worldPosition);
+        
+        // 计算屏幕中央位置（相机正中心射线与土星距离一半的交点）
+        const screenCenterNDC = new THREE.Vector3(0, 0, 0.5); // 屏幕中心，深度为0.5
+        const screenCenter = screenCenterNDC.unproject(this.camera); // 将屏幕坐标转换为3D世界坐标
+        
+        // 计算从相机到屏幕中心的射线方向
+        const cameraToScreenCenter = screenCenter.sub(this.camera.position).normalize();
+        const saturnDistance = this.camera.position.length(); // 相机到土星的距离
+        const targetDistance = saturnDistance * 0.5; // 土星距离的一半
+        const targetPoint = this.camera.position.clone().add(cameraToScreenCenter.multiplyScalar(targetDistance));
+        
+        // 存储原始信息到用户数据中
+        fragment.userData.originalParent = originalParent;
+        fragment.userData.relativePosition = relativePosition;
+        fragment.userData.relativeRotation = relativeRotation;
+        fragment.userData.relativeScale = relativeScale;
+        fragment.userData.originalWorldPosition = worldPosition.clone();
+        
+        // 创建流星飞行动画
+        this.createMeteorAnimation(
+            fragment, 
+            targetPoint, 
+            1.2, // 动画持续时间1.2秒
+            () => {
+                // 动画完成后的回调
+                this.showPhotoModal(fragment);
+            }
+        );
+        
+        console.log('开始流星飞行动画');
+    }
+
+    showPhotoModal(fragment) {
         // 随机选择照片，而不是使用固定的索引
         const photoIndex = Math.floor(Math.random() * this.photos.length);
         const modal = document.getElementById('photo-modal');
@@ -1723,9 +1941,6 @@ class SaturnRingScene {
         // 标记照片已打开
         this.isPhotoOpen = true;
         
-        // 标记碎片为已点击
-        fragment.userData.isClicked = true;
-        
         // 添加点击效果
         fragment.scale.set(1.5, 1.5, 1.5);
         if (fragment.userData.isPhotoThumbnail) {
@@ -1745,19 +1960,95 @@ class SaturnRingScene {
         // 标记照片已关闭
         this.isPhotoOpen = false;
         
-        // 重置所有碎片的点击状态
+        // 找到被点击的碎片并创建返回动画
         this.starFragments.forEach(fragment => {
             if (fragment.userData.isClicked) {
-                fragment.userData.isClicked = false;
-                fragment.scale.set(1, 1, 1);
-                if (fragment.userData.isPhotoThumbnail) {
-                    fragment.material.opacity = 0.9; // 照片缩略图恢复透明度
-                } else {
-                    fragment.material.shininess = 100; // 小球恢复光泽度
-                    fragment.material.specular = new THREE.Color(0xffffff); // 保持镜面反射
-                }
+                // 计算当前应该返回的世界位置
+                const targetWorldPosition = this.calculateTargetWorldPosition(fragment);
+                
+                // 创建流星返回动画
+                this.createMeteorReturnAnimation(
+                    fragment,
+                    targetWorldPosition,
+                    1.0, // 返回动画持续时间1秒
+                    () => {
+                        // 返回动画完成后的回调
+                        this.restoreFragmentToParent(fragment);
+                    }
+                );
+                
+                console.log('开始流星返回动画');
             }
         });
+    }
+
+    // 计算目标世界位置（基于相对位置和当前父节点状态）
+    calculateTargetWorldPosition(fragment) {
+        const originalParent = fragment.userData.originalParent;
+        const relativePosition = fragment.userData.relativePosition;
+        
+        // 创建一个临时对象来计算世界位置
+        const tempObject = new THREE.Object3D();
+        tempObject.position.copy(relativePosition);
+        originalParent.add(tempObject);
+        
+        // 获取世界位置
+        const worldPosition = new THREE.Vector3();
+        tempObject.getWorldPosition(worldPosition);
+        
+        // 移除临时对象
+        originalParent.remove(tempObject);
+        
+        return worldPosition;
+    }
+
+    // 恢复碎片到父节点
+    restoreFragmentToParent(fragment) {
+        const originalParent = fragment.userData.originalParent;
+        const relativePosition = fragment.userData.relativePosition;
+        const relativeRotation = fragment.userData.relativeRotation;
+        const relativeScale = fragment.userData.relativeScale;
+        
+        // 从场景中移除碎片
+        this.scene.remove(fragment);
+        
+        // 恢复相对变换
+        fragment.position.copy(relativePosition);
+        fragment.rotation.copy(relativeRotation);
+        fragment.scale.copy(relativeScale);
+        
+        // 重新加入原始父节点
+        originalParent.add(fragment);
+        
+        // 重置碎片的点击状态
+        fragment.userData.isClicked = false;
+        
+        // 清理存储的数据
+        delete fragment.userData.originalParent;
+        delete fragment.userData.relativePosition;
+        delete fragment.userData.relativeRotation;
+        delete fragment.userData.relativeScale;
+        delete fragment.userData.originalWorldPosition;
+        
+        console.log('碎片已恢复到原始父节点');
+    }
+
+    resetFragment(fragment) {
+        // 重置碎片的点击状态
+        fragment.userData.isClicked = false;
+        fragment.scale.set(1, 1, 1);
+        
+        if (fragment.userData.isPhotoThumbnail) {
+            fragment.material.opacity = 0.9; // 照片缩略图恢复透明度
+        } else {
+            fragment.material.shininess = 100; // 小球恢复光泽度
+            fragment.material.specular = new THREE.Color(0xffffff); // 保持镜面反射
+        }
+        
+        // 恢复原始旋转
+        fragment.rotation.set(0, 0, 0);
+        
+        console.log('碎片已重置到原始位置');
     }
 
     animate() {
@@ -1779,9 +2070,13 @@ class SaturnRingScene {
         // 在动画循环中更新光源位置
         this.updateLightPositions();
         
+        // 更新流星动画
+        this.updateMeteorAnimations();
+        
         // 星星碎片动画
         this.starFragments.forEach((fragment, index) => {
-            if (!fragment.userData.isClicked) {
+            // 只处理没有脱离父节点的碎片
+            if (!fragment.userData.isClicked && fragment.parent !== this.scene) {
                 // 保持固定高度，确保在星环前面
                 fragment.position.y = fragment.userData.originalPosition.y;
                 
@@ -1803,7 +2098,6 @@ class SaturnRingScene {
                 
                 // 新的闪烁效果：保持明亮，随机变暗再变亮
                 this.updateFragmentFlicker(fragment, elapsedTime);
-                
             }
         });
         
