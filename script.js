@@ -35,8 +35,11 @@ class SaturnRingScene {
         // 星星碎片数量
         this.starFragmentCount = 500; // 默认200个碎片
         
+        // 星星碎片大小比例
+        this.starFragmentSizeScale = 1.2; // 默认大小为基准，可设置1-3
+        
         // 星环主体显示状态
-        this.isRingVisible = true; //默认打开
+        this.isRingVisible = false; //默认关闭
         
         // 照片缩略图显示状态
         this.showPhotoThumbnails = false; //默认关闭
@@ -544,6 +547,35 @@ class SaturnRingScene {
         // 重新创建星星碎片
         this.createStarFragments();
     }
+    
+    // 更新星星碎片大小比例
+    updateStarFragmentSizeScale(newSizeScale) {
+        this.starFragmentSizeScale = newSizeScale;
+        
+        // 更新所有现有星星碎片的大小
+        this.starFragments.forEach(fragment => {
+            if (fragment.userData.baseSize) {
+                // 基于基础大小计算新的缩放比例
+                const newScale = fragment.userData.baseSize * this.starFragmentSizeScale;
+                
+                // 更新几何体大小
+                if (fragment.userData.isPhotoThumbnail) {
+                    // 对于照片缩略图（平面几何体），更新尺寸
+                    fragment.geometry.dispose(); // 释放旧几何体
+                    fragment.geometry = new THREE.PlaneGeometry(newScale, newScale);
+                } else {
+                    // 对于菱形几何体，需要重新创建
+                    fragment.geometry.dispose(); // 释放旧几何体
+                    fragment.geometry = this.createDiamondGeometry(newScale);
+                }
+                
+                // 更新用户数据中的原始大小
+                fragment.userData.originalSize = newScale;
+            }
+        });
+        
+        console.log(`星星碎片大小比例已更新为: ${this.starFragmentSizeScale}`);
+    }
 
     createSaturn() {
         // 土星主体 - 使用高精度几何体和程序化贴图
@@ -742,10 +774,12 @@ class SaturnRingScene {
 
     createStarFragment(ring, ringIndex) {
         let geometry, material;
+        let size, baseSize; // 声明变量，使其在整个函数中可用
         
         if (this.showPhotoThumbnails) {
             // 照片缩略图模式
-            const size = 0.15; // 固定大小，适合显示缩略图
+            baseSize = 0.15; // 基础大小，适合显示缩略图
+            size = baseSize * this.starFragmentSizeScale; // 应用大小比例
             geometry = new THREE.PlaneGeometry(size, size);
             
             // 获取照片索引
@@ -787,7 +821,8 @@ class SaturnRingScene {
             // 传统菱形模式
             const minSize = 0.05;
             const maxSize = minSize * 2; // 0.1
-            const size = Math.random() * (maxSize - minSize) + minSize;
+            baseSize = Math.random() * (maxSize - minSize) + minSize;
+            size = baseSize * this.starFragmentSizeScale; // 应用大小比例
             
             // 创建真正的菱形几何体（尖角朝上）
             geometry = this.createDiamondGeometry(size);
@@ -892,6 +927,9 @@ class SaturnRingScene {
             nextDimTime: Math.random() * 50 + 30, // 下次变暗的时间（30-80秒后）
             // 显示模式
             isPhotoThumbnail: this.showPhotoThumbnails, // 记录当前显示模式
+            // 大小相关数据
+            originalSize: size, // 存储原始大小（已应用比例）
+            baseSize: this.showPhotoThumbnails ? 0.15 : baseSize, // 存储基础大小（未应用比例）
         };
         
         // 根据显示模式添加特定数据
@@ -1741,6 +1779,18 @@ class SaturnRingScene {
                 const newDistribution = parseFloat(e.target.value);
                 this.updateStarFragmentDistribution(newDistribution);
                 starFragmentDistributionValue.textContent = newDistribution.toFixed(2);
+            });
+        }
+
+        // 星星碎片大小比例控制
+        const starFragmentSizeScaleSlider = document.getElementById('starFragmentSizeScale');
+        const starFragmentSizeScaleValue = document.getElementById('starFragmentSizeScaleValue');
+        
+        if (starFragmentSizeScaleSlider && starFragmentSizeScaleValue) {
+            starFragmentSizeScaleSlider.addEventListener('input', (e) => {
+                const newSizeScale = parseFloat(e.target.value);
+                this.updateStarFragmentSizeScale(newSizeScale);
+                starFragmentSizeScaleValue.textContent = newSizeScale.toFixed(1);
             });
         }
 
