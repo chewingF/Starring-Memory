@@ -930,6 +930,27 @@ class SaturnRingScene {
             // 大小相关数据
             originalSize: size, // 存储原始大小（已应用比例）
             baseSize: this.showPhotoThumbnails ? 0.15 : baseSize, // 存储基础大小（未应用比例）
+            // 随机大小变化效果
+            sizeVariation: {
+                enabled: true, // 是否启用大小变化
+                minScale: 0.7, // 最小缩放比例
+                maxScale: 1.3, // 最大缩放比例
+                speed: Math.random() * 0.02 + 0.01, // 大小变化速度（0.01-0.03）
+                phase: Math.random() * Math.PI * 2, // 初始相位
+                currentScale: 1.0 // 当前缩放比例
+            },
+            // 自旋转效果
+            selfRotation: {
+                enabled: true, // 是否启用自旋转
+                // 固定的旋转速度（初始化时随机设置一次）
+                speedX: (Math.random() * 0.8 + 0.1) * 1, // X轴旋转速度
+                speedY: (Math.random() * 0.8 + 0.1) * 2, // Y轴旋转速度
+                speedZ: (Math.random() * 0.8 + 0.1) * 0.5, // Z轴旋转速度
+                // 当前旋转角度
+                currentRotationX: 0,
+                currentRotationY: 0,
+                currentRotationZ: 0
+            }
         };
         
         // 根据显示模式添加特定数据
@@ -977,6 +998,49 @@ class SaturnRingScene {
             // 正常明亮状态
             fragment.material.opacity = 0.9;
         }
+    }
+    
+    // 更新星星碎片的随机大小变化效果
+    updateFragmentSizeVariation(fragment, deltaTime) {
+        const userData = fragment.userData;
+        
+        if (!userData.sizeVariation || !userData.sizeVariation.enabled) {
+            return;
+        }
+        
+        const sizeVar = userData.sizeVariation;
+        
+        // 使用正弦波计算大小变化
+        const time = performance.now() * 0.001; // 转换为秒
+        const wave = Math.sin(time * sizeVar.speed + sizeVar.phase);
+        
+        // 将正弦波从[-1,1]映射到[minScale, maxScale]
+        const normalizedWave = (wave + 1) / 2; // 映射到[0,1]
+        sizeVar.currentScale = sizeVar.minScale + normalizedWave * (sizeVar.maxScale - sizeVar.minScale);
+        
+        // 应用缩放
+        fragment.scale.setScalar(sizeVar.currentScale);
+    }
+    
+    // 更新星星碎片的自旋转效果
+    updateFragmentSelfRotation(fragment, deltaTime) {
+        const userData = fragment.userData;
+        
+        if (!userData.selfRotation || !userData.selfRotation.enabled) {
+            return;
+        }
+        
+        const selfRot = userData.selfRotation;
+        
+        // 更新旋转角度（使用固定的初始速度）
+        selfRot.currentRotationX += selfRot.speedX * deltaTime;
+        selfRot.currentRotationY += selfRot.speedY * deltaTime;
+        selfRot.currentRotationZ += selfRot.speedZ * deltaTime;
+        
+        // 应用旋转（相对于原始旋转）
+        fragment.rotation.x = selfRot.currentRotationX;
+        fragment.rotation.y = selfRot.currentRotationY;
+        fragment.rotation.z = selfRot.currentRotationZ;
     }
     
     // 更新星环可见性
@@ -2148,6 +2212,12 @@ class SaturnRingScene {
                 
                 // 新的闪烁效果：保持明亮，随机变暗再变亮
                 this.updateFragmentFlicker(fragment, elapsedTime);
+                
+                // 更新随机大小变化效果
+                this.updateFragmentSizeVariation(fragment, deltaTime);
+                
+                // 更新自旋转效果
+                this.updateFragmentSelfRotation(fragment, deltaTime);
             }
         });
         
