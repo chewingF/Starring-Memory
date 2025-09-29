@@ -1,3 +1,5 @@
+import * as THREE from 'three';
+
 export class StarFragmentManager {
     constructor(scene) {
         this.scene = scene;

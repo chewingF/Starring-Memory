@@ -40,8 +40,59 @@ export class SaturnRingScene extends LegacyScene {
                 this.starFragmentManager.update(deltaTime, elapsedTime, rotationPerSecond);
             }
 
-            this.renderer.render(this.scene, this.camera);
+            // 检查当前模式，决定使用哪种渲染方式
+            const modeSelect = document.getElementById('postProcessingMode');
+            const currentMode = modeSelect ? modeSelect.value : 'default';
+            
+            // 检查composer是否可用且像素模式是否启用
+            const useComposer = this.composer && currentMode === 'pixel';
+            
+            if (useComposer) {
+                // 像素模式：使用后处理合成器
+                this.composer.render();
+            } else {
+                // 默认模式：直接渲染，确保与原来效果一致
+                this.renderer.render(this.scene, this.camera);
+            }
         };
+        
+        // 等待后处理系统初始化完成
+        this._waitForPostProcessing();
+    }
+    
+    /**
+     * 等待后处理系统初始化完成
+     */
+    async _waitForPostProcessing() {
+        // 等待composer初始化完成
+        const checkComposer = () => {
+            if (this.composer) {
+                console.log('后处理合成器已就绪');
+                return true;
+            }
+            return false;
+        };
+        
+        // 如果composer已经存在，直接返回
+        if (checkComposer()) return;
+        
+        // 否则等待一段时间后重试
+        const maxRetries = 50; // 最多等待5秒
+        let retries = 0;
+        
+        const waitForComposer = () => {
+            if (checkComposer() || retries >= maxRetries) {
+                if (retries >= maxRetries) {
+                    console.warn('后处理合成器初始化超时，使用默认渲染');
+                }
+                return;
+            }
+            
+            retries++;
+            setTimeout(waitForComposer, 100);
+        };
+        
+        waitForComposer();
     }
 
     _wireManagers() {

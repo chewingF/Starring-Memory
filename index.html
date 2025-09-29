@@ -125,7 +125,6 @@
             z-index: 50;
             min-width: 220px;
             max-height: 80vh;
-            overflow-y: auto;
             display: block; /* 确保控制面板默认显示 */
         }
 
@@ -165,9 +164,11 @@
 
         .detailed-controls {
             transition: all 0.3s ease;
-            overflow: hidden;
-            max-height: 1000px; /* 设置一个足够大的最大高度 */
+            overflow-y: auto;
+            max-height: calc(80vh - 80px); /* 减去标题区域的高度 */
             opacity: 1;
+            scrollbar-width: thin;
+            scrollbar-color: #ffd700 #333;
         }
 
         .detailed-controls.collapsed {
@@ -229,7 +230,7 @@
                 padding: 10px;
                 min-width: 180px;
                 font-size: 12px;
-                max-height: 70vh;
+                max-height: 80vh;
             }
             
             .control-panel h3 {
@@ -258,7 +259,7 @@
             <h3>🌟 控制面板</h3>
             <button id="toggleDetails" class="toggle-details-btn">+</button>
         </div>
-        <div id="detailed-controls" class="detailed-controls collapsed">
+        <div id="detailed-controls" class="detailed-controls">
         <div class="control-group">
             <label>旋转速度 (圈/分钟)</label>
             <input type="range" id="rotationSpeed" min="0" max="2" step="0.1" value="0">
@@ -345,25 +346,28 @@
         <div class="control-group">
             <label>效果模式</label>
             <select id="postProcessingMode" style="width: 100%; padding: 5px; background: rgba(255,255,255,0.1); border: 1px solid #fff; border-radius: 4px; color: #fff;">
-                <option value="default">默认模式</option>
-                <option value="pixel" selected>像素风格</option>
+                <option value="default" selected>默认模式</option>
+                <option value="pixel">像素风格</option>
             </select>
         </div>
-        <div class="control-group" id="pixelControls" style="display: block;">
+        <div class="control-group" id="pixelControls" style="display: none;">
             <label>像素大小</label>
-            <input type="range" id="pixelSize" min="1" max="16" step="1" value="1">
-            <div class="value" id="pixelSizeValue">1</div>
+            <input type="range" id="pixelSize" min="1" max="16" step="1" value="6">
+            <div class="value" id="pixelSizeValue">6</div>
         </div>
-        <div class="control-group" id="pixelControls2" style="display: block;">
+        <div class="control-group" id="pixelControls2" style="display: none;">
             <label>法线边缘强度</label>
             <input type="range" id="normalEdgeStrength" min="0" max="2" step="0.05" value="1.0">
             <div class="value" id="normalEdgeStrengthValue">1.0</div>
         </div>
-        <div class="control-group" id="pixelControls3" style="display: block;">
+        <div class="control-group" id="pixelControls3" style="display: none;">
             <label>深度边缘强度</label>
             <input type="range" id="depthEdgeStrength" min="0" max="1" step="0.05" value="1.0">
             <div class="value" id="depthEdgeStrengthValue">1.0</div>
         </div>
+        
+        <!-- 添加底部边距，确保滚动区域足够 -->
+        <div style="height: 200px; margin-bottom: 100px; margin-top: 100px;"></div>
         </div>
     </div>
 
@@ -371,7 +375,16 @@
         点击/触摸星星碎片查看回忆照片 • 点击/触摸任意地方关闭照片 • 按 'C' 键切换控制面板 • 倾斜设备体验陀螺仪视差效果
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- 使用模块版本Three.js，避免重复导入 -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "./LearningSource/three.js/build/three.module.js",
+                "three/addons/": "./LearningSource/three.js/examples/jsm/"
+            }
+        }
+    </script>
+    
     <script type="module" src="src/main.js"></script>
 </body>
 </html>

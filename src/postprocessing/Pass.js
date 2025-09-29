@@ -1,4 +1,4 @@
-// Three.js 通过全局变量 THREE 访问
+import * as THREE from 'three';
 
 /**
  * Abstract base class for all post processing passes.

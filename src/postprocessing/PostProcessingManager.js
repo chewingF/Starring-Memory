@@ -24,7 +24,7 @@ export class PostProcessingManager {
         
         // 像素化效果参数
         this.pixelParams = {
-            pixelSize: 1, // 极小的像素大小，效果非常明显
+            pixelSize: 6, // 合理的像素大小，产生明显的像素化效果
             normalEdgeStrength: 1.0,
             depthEdgeStrength: 1.0
         };

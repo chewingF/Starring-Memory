@@ -1,3 +1,5 @@
+import * as THREE from 'three';
+
 export class PlanetarySystem {
     constructor(scene) {
         this.scene = scene;
@@ -28,6 +30,11 @@ export class PlanetarySystem {
                 texture.generateMipmaps = true;
                 texture.flipY = false;
                 texture.needsUpdate = true;
+                
+                // 设置纹理颜色空间，避免过亮
+                if (texture.colorSpace !== undefined) {
+                    texture.colorSpace = THREE.SRGBColorSpace;
+                }
                 this.scene.saturnTextureLoaded = true;
                 this.scene.checkReady();
             },

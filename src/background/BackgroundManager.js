@@ -1,3 +1,5 @@
+import * as THREE from 'three';
+
 export class BackgroundManager {
     constructor(scene) {
         this.scene = scene;
@@ -36,6 +38,11 @@ export class BackgroundManager {
                 loadedTexture.wrapT = THREE.ClampToEdgeWrapping;
                 loadedTexture.minFilter = THREE.LinearFilter;
                 loadedTexture.magFilter = THREE.LinearFilter;
+                
+                // 设置纹理颜色空间，避免过亮
+                if (loadedTexture.colorSpace !== undefined) {
+                    loadedTexture.colorSpace = THREE.SRGBColorSpace;
+                }
                 const aspect = window.innerWidth / window.innerHeight;
                 const textureAspect = loadedTexture.image.width / loadedTexture.image.height;
                 const scaleFactor = 0.9;

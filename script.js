@@ -1,3 +1,6 @@
+// 导入Three.js模块
+import * as THREE from 'three';
+
 export class SaturnRingScene {
     constructor() {
         this.scene = null;
@@ -98,7 +101,12 @@ export class SaturnRingScene {
         this.postProcessingManager = null;
         
         this.init();
-        this.animate();
+        // 延迟启动动画循环，让子类有机会覆盖animate方法
+        setTimeout(() => {
+            if (typeof this.animate === 'function') {
+                this.animate();
+            }
+        }, 0);
         this.setupEventListeners();
         this.initControlPanel(); // 初始化控制面板状态
     }
@@ -124,6 +132,9 @@ export class SaturnRingScene {
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        
+        // 暂时移除颜色空间设置，测试是否是这些设置导致画面过亮
+        // 如果画面仍然过亮，可能需要调整光照强度
         
         document.getElementById('canvas-container').appendChild(this.renderer.domElement);
 
@@ -153,8 +164,8 @@ export class SaturnRingScene {
         // 初始化陀螺仪
         this.initGyroscope();
         
-        // 初始化后处理管理器
-        this.initPostProcessing();
+        // 初始化后处理管理器 - 异步创建，完全按照test-pixel-effect的方式
+        this.initPostProcessingSync();
     }
 
 
@@ -875,15 +886,25 @@ export class SaturnRingScene {
         if (this.backgroundManager) return this.backgroundManager.updateBackgroundTexture();
     }
 
-    // 初始化后处理管理器
-    async initPostProcessing() {
+    // 初始化后处理管理器 - 异步导入官方模块
+    async initPostProcessingSync() {
         try {
-            // 使用简化像素化效果V2
-            const { SimplePixelEffectV2 } = await import('./src/postprocessing/SimplePixelEffectV2.js');
-            this.postProcessingManager = new SimplePixelEffectV2(this.renderer, this.scene, this.camera);
-            console.log('简化像素化效果V2初始化成功');
+            // 动态导入Three.js官方后处理模块 - 使用importmap映射
+            const { EffectComposer } = await import('three/addons/postprocessing/EffectComposer.js');
+            const { RenderPixelatedPass } = await import('three/addons/postprocessing/RenderPixelatedPass.js');
+            const { OutputPass } = await import('three/addons/postprocessing/OutputPass.js');
+            
+            // 创建效果合成器 - 完全按照test-pixel-effect的方式
+            this.composer = new EffectComposer(this.renderer);
+            const renderPixelatedPass = new RenderPixelatedPass(6, this.scene, this.camera);
+            this.composer.addPass(renderPixelatedPass);
+            
+            const outputPass = new OutputPass();
+            this.composer.addPass(outputPass);
+            
+            console.log('Three.js官方后处理效果初始化成功 - 像素大小: 6');
         } catch (error) {
-            console.error('简化像素化效果V2初始化失败:', error);
+            console.error('Three.js官方后处理效果初始化失败:', error);
         }
     }
 
@@ -1393,9 +1414,9 @@ export class SaturnRingScene {
             this.camera.updateProjectionMatrix();
             this.renderer.setSize(window.innerWidth, window.innerHeight);
             
-            // 更新后处理管理器尺寸
-            if (this.postProcessingManager) {
-                this.postProcessingManager.setSize(window.innerWidth, window.innerHeight);
+            // 更新后处理合成器尺寸 - 完全按照test-pixel-effect的方式
+            if (this.composer) {
+                this.composer.setSize(window.innerWidth, window.innerHeight);
             }
             
             // 重新计算背景纹理比例
@@ -1643,17 +1664,14 @@ export class SaturnRingScene {
             modeSelect.addEventListener('change', (e) => {
                 const mode = e.target.value;
                 console.log('UI模式切换:', mode);
-                if (this.postProcessingManager) {
-                    this.postProcessingManager.setMode(mode);
-                } else {
-                    console.error('后处理管理器未初始化');
-                }
                 
                 // 显示/隐藏像素化控制
                 const showPixelControls = mode === 'pixel';
                 if (pixelControls) pixelControls.style.display = showPixelControls ? 'block' : 'none';
                 if (pixelControls2) pixelControls2.style.display = showPixelControls ? 'block' : 'none';
                 if (pixelControls3) pixelControls3.style.display = showPixelControls ? 'block' : 'none';
+                
+                console.log('模式切换完成:', mode, '像素控制显示:', showPixelControls);
             });
         }
         
@@ -1665,8 +1683,12 @@ export class SaturnRingScene {
             pixelSizeSlider.addEventListener('input', (e) => {
                 const value = parseInt(e.target.value);
                 pixelSizeValue.textContent = value;
-                if (this.postProcessingManager) {
-                    this.postProcessingManager.updatePixelParams({ pixelSize: value });
+                if (this.composer) {
+                    // 更新RenderPixelatedPass的像素大小
+                    const renderPixelatedPass = this.composer.passes.find(pass => pass.constructor.name === 'RenderPixelatedPass');
+                    if (renderPixelatedPass) {
+                        renderPixelatedPass.setPixelSize(value);
+                    }
                 }
             });
         }
@@ -1679,8 +1701,12 @@ export class SaturnRingScene {
             normalEdgeSlider.addEventListener('input', (e) => {
                 const value = parseFloat(e.target.value);
                 normalEdgeValue.textContent = value.toFixed(2);
-                if (this.postProcessingManager) {
-                    this.postProcessingManager.updatePixelParams({ normalEdgeStrength: value });
+                if (this.composer) {
+                    // 更新RenderPixelatedPass的法线边缘强度
+                    const renderPixelatedPass = this.composer.passes.find(pass => pass.constructor.name === 'RenderPixelatedPass');
+                    if (renderPixelatedPass) {
+                        renderPixelatedPass.normalEdgeStrength = value;
+                    }
                 }
             });
         }
@@ -1693,8 +1719,12 @@ export class SaturnRingScene {
             depthEdgeSlider.addEventListener('input', (e) => {
                 const value = parseFloat(e.target.value);
                 depthEdgeValue.textContent = value.toFixed(2);
-                if (this.postProcessingManager) {
-                    this.postProcessingManager.updatePixelParams({ depthEdgeStrength: value });
+                if (this.composer) {
+                    // 更新RenderPixelatedPass的深度边缘强度
+                    const renderPixelatedPass = this.composer.passes.find(pass => pass.constructor.name === 'RenderPixelatedPass');
+                    if (renderPixelatedPass) {
+                        renderPixelatedPass.depthEdgeStrength = value;
+                    }
                 }
             });
         }
@@ -1705,11 +1735,11 @@ export class SaturnRingScene {
         // 添加调试快捷键：按 'P' 键切换像素化效果
         window.addEventListener('keydown', (event) => {
             if (event.key.toLowerCase() === 'p') {
-                if (this.postProcessingManager) {
-                    const currentMode = this.postProcessingManager.getCurrentMode();
-                    const newMode = currentMode === 'pixel' ? 'default' : 'pixel';
-                    this.postProcessingManager.setMode(newMode);
-                    console.log(`调试：切换到${newMode}模式`);
+                if (this.composer) {
+                    // 切换所有pass的启用状态
+                    const allEnabled = this.composer.passes.every(pass => pass.enabled);
+                    this.composer.passes.forEach(pass => pass.enabled = !allEnabled);
+                    console.log(`调试：切换到${allEnabled ? 'default' : 'pixel'}模式`);
                 }
             }
         });
@@ -1962,9 +1992,9 @@ export class SaturnRingScene {
             }
         });
         
-        // 使用后处理管理器渲染
-        if (this.postProcessingManager) {
-            this.postProcessingManager.render();
+        // 使用官方后处理合成器渲染 - 完全按照test-pixel-effect的方式
+        if (this.composer) {
+            this.composer.render();
         } else {
             this.renderer.render(this.scene, this.camera);
         }
