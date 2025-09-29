@@ -68,30 +68,11 @@ export class PlanetarySystem {
         });
         const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
         this.scene.saturn.add(atmosphere);
-        this.createPolarStorms();
+        // 极地风暴已移除
         // this.createSaturnShadow();
     }
 
-    createPolarStorms() {
-        const northStormGeometry = new THREE.SphereGeometry(3.02, 32, 16, 0, Math.PI * 2, 0, Math.PI / 6);
-        const northStormMaterial = new THREE.MeshPhongMaterial({
-            color: 0x8B4513,
-            transparent: true,
-            opacity: 0.4,
-            side: THREE.DoubleSide
-        });
-        const northStorm = new THREE.Mesh(northStormGeometry, northStormMaterial);
-        this.scene.saturn.add(northStorm);
-        const southStormGeometry = new THREE.SphereGeometry(3.02, 32, 16, 0, Math.PI * 2, Math.PI * 5/6, Math.PI / 6);
-        const southStormMaterial = new THREE.MeshPhongMaterial({
-            color: 0x8B4513,
-            transparent: true,
-            opacity: 0.3,
-            side: THREE.DoubleSide
-        });
-        const southStorm = new THREE.Mesh(southStormGeometry, southStormMaterial);
-        this.scene.saturn.add(southStorm);
-    }
+    // 极地风暴函数已移除
 
     createSaturnShadow() {
         const shadowGeometry = new THREE.RingGeometry(4, 8.5, 64);

@@ -337,6 +337,33 @@
                 <span style="color: #888; font-size: 10px;">倾斜设备查看背景移动效果</span>
             </label>
         </div>
+        
+        <!-- 后处理效果控制 -->
+        <div class="control-group">
+            <label style="color: #ff6b6b; font-weight: bold;">🎨 后处理效果</label>
+        </div>
+        <div class="control-group">
+            <label>效果模式</label>
+            <select id="postProcessingMode" style="width: 100%; padding: 5px; background: rgba(255,255,255,0.1); border: 1px solid #fff; border-radius: 4px; color: #fff;">
+                <option value="default">默认模式</option>
+                <option value="pixel" selected>像素风格</option>
+            </select>
+        </div>
+        <div class="control-group" id="pixelControls" style="display: block;">
+            <label>像素大小</label>
+            <input type="range" id="pixelSize" min="1" max="16" step="1" value="1">
+            <div class="value" id="pixelSizeValue">1</div>
+        </div>
+        <div class="control-group" id="pixelControls2" style="display: block;">
+            <label>法线边缘强度</label>
+            <input type="range" id="normalEdgeStrength" min="0" max="2" step="0.05" value="1.0">
+            <div class="value" id="normalEdgeStrengthValue">1.0</div>
+        </div>
+        <div class="control-group" id="pixelControls3" style="display: block;">
+            <label>深度边缘强度</label>
+            <input type="range" id="depthEdgeStrength" min="0" max="1" step="0.05" value="1.0">
+            <div class="value" id="depthEdgeStrengthValue">1.0</div>
+        </div>
         </div>
     </div>
 

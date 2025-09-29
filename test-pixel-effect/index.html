@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<title>three.js webgl - post processing - pixelation</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+	<link type="text/css" rel="stylesheet" href="main.css">
+</head>
+
+<body>
+	<!-- 隐藏顶部文字 -->
+	<!-- <div id="info">
+		<a href="https://threejs.org" target="_blank" rel="noopener">three.js</a> - Pixelation pass with optional single pixel outlines by
+		<a href="https://github.com/KodyJKing" target="_blank" rel="noopener">Kody King</a><br /><br />
+	</div> -->
+
+	<div id="container"></div>
+
+	<script type="importmap">
+		{
+			"imports": {
+				"three": "../LearningSource/three.js/build/three.module.js",
+				"three/addons/": "../LearningSource/three.js/examples/jsm/"
+			}
+		}
+	</script>
+
+	<script type="module">
+
+		import * as THREE from 'three';
+
+		import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+		import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+		import { RenderPixelatedPass } from 'three/addons/postprocessing/RenderPixelatedPass.js';
+		import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+		import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+
+		let camera, scene, renderer, composer, crystalMesh, clock;
+		let gui, params;
+
+		init();
+
+		// 复制主项目的目标位置计算函数
+		function calculateTargetPositionForScreenPosition(planetScreenPosition, cameraDistance, cameraHeight, cameraFOV) {
+			// 将屏幕坐标(0,0)-(1,1)转换为NDC坐标(-1,-1)-(1,1)
+			const ndcX = planetScreenPosition.x * 2 - 1;
+			const ndcY = planetScreenPosition.y * 2 - 1;
+			
+			// 计算相机到土星中心的距离
+			const distanceToSaturn = Math.sqrt(0*0 + cameraHeight*cameraHeight + cameraDistance*cameraDistance);
+			
+			// 计算视野角度
+			const fovRad = (cameraFOV * Math.PI) / 180;
+			const aspect = window.innerWidth / window.innerHeight;
+			
+			// 计算在土星距离处的视野范围
+			const viewHeight = 2 * Math.tan(fovRad / 2) * distanceToSaturn;
+			const viewWidth = viewHeight * aspect;
+			
+			// 计算土星应该偏移的位置
+			const offsetX = ndcX * viewWidth * 0.5;
+			const offsetY = ndcY * viewHeight * 0.5;
+			
+			// 计算相机的前方向向量（从相机指向土星中心）
+			const cameraToSaturn = new THREE.Vector3(0, 0, 0).sub(new THREE.Vector3(0, cameraHeight, cameraDistance)).normalize();
+			
+			// 计算相机的右方向向量
+			const cameraRight = new THREE.Vector3().crossVectors(cameraToSaturn, new THREE.Vector3(0, 1, 0)).normalize();
+			
+			// 计算相机的上方向向量
+			const cameraUp = new THREE.Vector3().crossVectors(cameraRight, cameraToSaturn).normalize();
+			
+			// 计算土星应该出现的目标位置
+			const targetPosition = new THREE.Vector3(
+				offsetX * cameraRight.x + offsetY * cameraUp.x,
+				offsetX * cameraRight.y + offsetY * cameraUp.y,
+				offsetX * cameraRight.z + offsetY * cameraUp.z
+			);
+			
+			return targetPosition;
+		}
+
+		function init() {
+
+			const aspectRatio = window.innerWidth / window.innerHeight;
+
+			// 使用透视相机，完全复制主项目的相机设置
+			camera = new THREE.PerspectiveCamera(49, window.innerWidth / window.innerHeight, 0.1, 1000);
+			// 使用主项目的相机位置参数
+			const cameraDistance = 16;
+			const cameraHeight = 0.5;
+			camera.position.set(0, cameraHeight, cameraDistance);
+			
+			// 使用主项目的目标位置计算逻辑
+			const planetScreenPosition = { x: 0.93, y: 0.39 }; // 主项目的默认屏幕位置
+			const targetPosition = calculateTargetPositionForScreenPosition(planetScreenPosition, cameraDistance, cameraHeight, 49);
+			camera.lookAt(targetPosition);
+
+			scene = new THREE.Scene();
+			scene.background = new THREE.Color( 0x151729 );
+
+			clock = new THREE.Clock();
+
+			renderer = new THREE.WebGLRenderer();
+			renderer.shadowMap.enabled = true;
+			//renderer.setPixelRatio( window.devicePixelRatio );
+			renderer.setSize( window.innerWidth, window.innerHeight );
+			renderer.setAnimationLoop( animate );
+			document.body.appendChild( renderer.domElement );
+
+			composer = new EffectComposer( renderer );
+			const renderPixelatedPass = new RenderPixelatedPass( 6, scene, camera );
+			composer.addPass( renderPixelatedPass );
+
+			const outputPass = new OutputPass();
+			composer.addPass( outputPass );
+
+			window.addEventListener( 'resize', onWindowResize );
+
+			const controls = new OrbitControls( camera, renderer.domElement );
+			controls.maxZoom = 2;
+
+			// 隐藏GUI控制面板
+			// gui = new GUI();
+			// params = { pixelSize: 6, normalEdgeStrength: .3, depthEdgeStrength: .4, pixelAlignedPanning: true };
+			// gui.add( params, 'pixelSize' ).min( 1 ).max( 16 ).step( 1 )
+			// 	.onChange( () => {
+			// 		renderPixelatedPass.setPixelSize( params.pixelSize );
+			// 	} );
+			// gui.add( renderPixelatedPass, 'normalEdgeStrength' ).min( 0 ).max( 2 ).step( .05 );
+			// gui.add( renderPixelatedPass, 'depthEdgeStrength' ).min( 0 ).max( 1 ).step( .05 );
+			// gui.add( params, 'pixelAlignedPanning' );
+
+			// 添加光照 - 使用主项目的设置，整体调高10%
+			// 添加环境光
+			const ambientLight = new THREE.AmbientLight(0x404040, 0.33); // 0.3 * 1.1 = 0.33
+			scene.add(ambientLight);
+
+			// 添加主光源 - 模拟太阳光
+			const directionalLight = new THREE.DirectionalLight(0xfff8dc, 0.77); // 0.7 * 1.1 = 0.77
+			directionalLight.castShadow = true;
+			directionalLight.shadow.mapSize.width = 4096;
+			directionalLight.shadow.mapSize.height = 4096;
+			directionalLight.shadow.camera.near = 0.1;
+			directionalLight.shadow.camera.far = 50;
+			directionalLight.shadow.camera.left = -20;
+			directionalLight.shadow.camera.right = 20;
+			directionalLight.shadow.camera.top = 20;
+			directionalLight.shadow.camera.bottom = -20;
+			scene.add(directionalLight);
+
+			// 添加补光 - 模拟土星反射的光
+			const fillLight = new THREE.DirectionalLight(0xffd700, 0.11); // 0.1 * 1.1 = 0.11
+			scene.add(fillLight);
+
+			// 设置光照位置 - 复制主项目的逻辑
+			updateLightPositions();
+
+			// 创建土星系统
+			createSaturnSystem();
+
+		}
+
+		function createSaturnSystem() {
+			// 创建旋转轴组 - 复制主项目的倾斜设置
+			const rotationAxis = new THREE.Group();
+			rotationAxis.name = 'rotationAxis'; // 设置名称
+			rotationAxis.rotation.x = (27 * Math.PI) / 180; // 主项目的X轴倾斜
+			rotationAxis.rotation.z = (15 * Math.PI) / 180; // 主项目的Z轴倾斜
+			scene.add(rotationAxis);
+			
+			// 创建土星系统组
+			const saturnSystem = new THREE.Group();
+			rotationAxis.add(saturnSystem);
+			
+			// 创建土星 - 恢复贴图加载
+			const saturnGeometry = new THREE.SphereGeometry(3, 128, 128);
+			
+			// 加载土星贴图
+			const saturnTexture = new THREE.TextureLoader().load('../Textures/Saturn.jpg', function(texture) {
+				console.log('NASA土星贴图加载成功');
+			});
+			
+			const saturnMaterial = new THREE.MeshPhongMaterial({
+				map: saturnTexture,
+				shininess: 1,
+				specular: 0x111111,
+				transparent: false,
+				emissive: new THREE.Color(0x111111),
+				emissiveIntensity: 1
+			});
+			
+			const saturn = new THREE.Mesh(saturnGeometry, saturnMaterial);
+			saturn.position.set(0, 0, 0);
+			saturn.castShadow = true;
+			saturn.receiveShadow = true;
+			saturnSystem.add(saturn);
+
+			// 创建大气层 - 复制主项目
+			const atmosphereGeometry = new THREE.SphereGeometry(3.05, 64, 64);
+			const atmosphereMaterial = new THREE.MeshPhongMaterial({
+				color: 0xffd700,
+				transparent: true,
+				opacity: 0.1,
+				side: THREE.BackSide
+			});
+			const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
+			saturn.add(atmosphere);
+
+			// 极地风暴已移除
+
+			// 创建土星阴影 - 复制主项目
+			createSaturnShadow(saturnSystem);
+
+			// 星环本体已隐藏，只显示星星碎片
+			// createRingLayers(saturnSystem);
+
+			// 创建星星碎片 - 使用主项目的设置
+			createStarFragments(saturnSystem);
+		}
+
+		function createRingLayers(saturnSystem) {
+			// 创建星环纹理 - 复制主项目的逻辑
+			const ringTexture = createRingTexture();
+			
+			// 内环
+			const innerRingGeometry = new THREE.RingGeometry(4, 5.2, 256);
+			const innerRingMaterial = new THREE.MeshPhongMaterial({
+				map: ringTexture,
+				color: 0xd99e29,
+				transparent: true,
+				opacity: 0.6,
+				side: THREE.DoubleSide,
+				shininess: 200,
+				specular: 0x888888,
+				alphaTest: 0.1
+			});
+			const innerRing = new THREE.Mesh(innerRingGeometry, innerRingMaterial);
+			innerRing.rotation.x = Math.PI / 2;
+			innerRing.position.y = 0;
+			saturnSystem.add(innerRing);
+
+			// 中环
+			const middleRingGeometry = new THREE.RingGeometry(5.8, 7, 256);
+			const middleRingMaterial = new THREE.MeshPhongMaterial({
+				map: ringTexture,
+				color: 0x9c7913,
+				transparent: true,
+				opacity: 0.5,
+				side: THREE.DoubleSide,
+				shininess: 200,
+				specular: 0x888888,
+				alphaTest: 0.1
+			});
+			const middleRing = new THREE.Mesh(middleRingGeometry, middleRingMaterial);
+			middleRing.rotation.x = Math.PI / 2;
+			middleRing.position.y = 0;
+			saturnSystem.add(middleRing);
+
+			// 外环
+			const outerRingGeometry = new THREE.RingGeometry(7, 8.5, 256);
+			const outerRingMaterial = new THREE.MeshPhongMaterial({
+				map: ringTexture,
+				color: 0xcfa200,
+				transparent: true,
+				opacity: 0.4,
+				side: THREE.DoubleSide,
+				shininess: 200,
+				specular: 0x888888,
+				alphaTest: 0.1
+			});
+			const outerRing = new THREE.Mesh(outerRingGeometry, outerRingMaterial);
+			outerRing.rotation.x = Math.PI / 2;
+			outerRing.position.y = 0;
+			saturnSystem.add(outerRing);
+		}
+
+		function createRingTexture() {
+			// 创建星环纹理 - 复制主项目的逻辑
+			const canvas = document.createElement('canvas');
+			canvas.width = 1024;
+			canvas.height = 64;
+			const ctx = canvas.getContext('2d');
+			
+			// 创建径向渐变
+			const gradient = ctx.createLinearGradient(0, 0, 1024, 0);
+			gradient.addColorStop(0, 'rgba(200, 200, 200, 0)');
+			gradient.addColorStop(0.2, 'rgba(180, 180, 180, 0.3)');
+			gradient.addColorStop(0.4, 'rgba(160, 160, 160, 0.5)');
+			gradient.addColorStop(0.6, 'rgba(140, 140, 140, 0.4)');
+			gradient.addColorStop(0.8, 'rgba(120, 120, 120, 0.2)');
+			gradient.addColorStop(1, 'rgba(100, 100, 100, 0)');
+			
+			ctx.fillStyle = gradient;
+			ctx.fillRect(0, 0, 1024, 64);
+			
+			// 添加环的细节
+			addRingDetails(ctx);
+			
+			const texture = new THREE.CanvasTexture(canvas);
+			texture.wrapS = THREE.RepeatWrapping;
+			texture.wrapT = THREE.RepeatWrapping;
+			return texture;
+		}
+
+		function addRingDetails(ctx) {
+			// 添加环的颗粒感 - 复制主项目的逻辑
+			ctx.globalAlpha = 0.1;
+			for (let i = 0; i < 1000; i++) {
+				const x = Math.random() * 1024;
+				const y = Math.random() * 64;
+				const size = Math.random() * 2 + 1;
+				
+				ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+				ctx.fillRect(x, y, size, size);
+			}
+			ctx.globalAlpha = 1;
+		}
+
+		function createStarFragments(saturnSystem) {
+			// 星星碎片设置 - 数量提升为4倍
+			const rings = [
+				{ name: 'A', innerRadius: 4.0, outerRadius: 4.8, color: 0xffd700, count: 60 }, // 15 * 4 = 60
+				{ name: 'B', innerRadius: 4.8, outerRadius: 5.2, color: 0xffed4e, count: 40 }, // 10 * 4 = 40
+				{ name: 'C', innerRadius: 5.8, outerRadius: 7.2, color: 0xffa500, count: 80 }, // 20 * 4 = 80
+				{ name: 'D', innerRadius: 7.6, outerRadius: 8.4, color: 0xff8c00, count: 60 }  // 15 * 4 = 60
+			];
+
+			rings.forEach((ring, ringIndex) => {
+				for (let i = 0; i < ring.count; i++) {
+					const fragment = createStarFragment(ring, ringIndex);
+					saturnSystem.add(fragment);
+				}
+			});
+		}
+
+		function createStarFragment(ring, ringIndex) {
+			// 碎片大小设置
+			const minSize = 0.06;
+			const maxSize = 0.08;
+			const baseSize = Math.random() * (maxSize - minSize) + minSize;
+			const geometry = new THREE.SphereGeometry(baseSize, 8, 8);
+			
+			// 碎片材质设置
+			const material = new THREE.MeshPhongMaterial({
+				color: ring.color,
+				transparent: true,
+				opacity: 0.9,
+				shininess: 2,
+				specular: 0x888888,
+				emissive: ring.color,
+				emissiveIntensity: 0.1
+			});
+			
+			const fragment = new THREE.Mesh(geometry, material);
+			
+			// 位置计算
+			const angle = Math.random() * Math.PI * 2;
+			const radius = Math.random() * (ring.outerRadius - ring.innerRadius) + ring.innerRadius;
+			const height = (Math.random() - 0.5) * 0.1;
+			
+			fragment.position.x = Math.cos(angle) * radius;
+			fragment.position.z = Math.sin(angle) * radius;
+			fragment.position.y = height + 0.1;
+			
+			// 旋转速度设置 - 复制主项目的逻辑
+			const rotationMultipliers = [1.0, 0.8, 0.6, 0.4]; // 内环到外环速度递减
+			const ringBaseMultiplier = rotationMultipliers[ringIndex] || 1.0;
+			const randomSpeedMultiplier = Math.random() * 0.2 + 0.9;
+			const rotationMultiplier = ringBaseMultiplier * randomSpeedMultiplier;
+			
+			fragment.userData = {
+				originalPosition: fragment.position.clone(),
+				originalAngle: angle,
+				radius: radius,
+				rotationMultiplier: rotationMultiplier,
+				ringName: ring.name,
+				ringIndex: ringIndex
+			};
+			
+			return fragment;
+		}
+
+		// 极地风暴函数已移除
+
+		function updateLightPositions() {
+			// 更新光照位置 - 复制主项目的逻辑
+			const directionalLight = scene.children.find(child => child.type === 'DirectionalLight' && child.color.getHex() === 0xfff8dc);
+			const fillLight = scene.children.find(child => child.type === 'DirectionalLight' && child.color.getHex() === 0xffd700);
+			
+			if (directionalLight && fillLight) {
+				// 光源位置和相机位置完全一样
+				directionalLight.position.copy(camera.position);
+				fillLight.position.copy(camera.position);
+			}
+		}
+
+		function createSaturnShadow(saturnSystem) {
+			// 土星阴影 - 复制主项目的设置
+			const shadowGeometry = new THREE.RingGeometry(4, 8.5, 64);
+			const shadowMaterial = new THREE.MeshPhongMaterial({
+				color: 0x000000,
+				transparent: true,
+				opacity: 0.2,
+				side: THREE.DoubleSide
+			});
+			const shadow = new THREE.Mesh(shadowGeometry, shadowMaterial);
+			shadow.rotation.x = Math.PI / 2;
+			shadow.position.y = -0.1;
+			saturnSystem.add(shadow);
+		}
+
+		function onWindowResize() {
+
+			// 透视相机的窗口大小调整
+			camera.aspect = window.innerWidth / window.innerHeight;
+			camera.updateProjectionMatrix();
+
+			renderer.setSize( window.innerWidth, window.innerHeight );
+			composer.setSize( window.innerWidth, window.innerHeight );
+
+		}
+
+		function animate() {
+
+			const deltaTime = clock.getDelta();
+			const elapsedTime = clock.getElapsedTime();
+			
+			// 调试代码已移除
+
+			// 使用主项目的旋转逻辑 - 旋转整个土星系统
+			// 主项目的旋转速度：0.1圈/分钟，转换为弧度/秒
+			const rotationSpeed = 0.1; // 圈/分钟，恢复原设置
+			const rotationPerSecond = (rotationSpeed * Math.PI * 2) / 60; // 转换为弧度/秒
+			
+			// 旋转土星系统
+			const rotationAxis = scene.children.find(child => child.name === 'rotationAxis');
+			if (rotationAxis && rotationAxis.children[0]) {
+				rotationAxis.children[0].rotation.y -= rotationPerSecond * deltaTime;
+			}
+
+			// 更新星星碎片的独立旋转 - 复制主项目的逻辑
+			updateStarFragments(deltaTime, elapsedTime, rotationPerSecond);
+
+			// 恢复像素化效果
+			composer.render();
+
+		}
+
+		function updateStarFragments(deltaTime, elapsedTime, rotationPerSecond) {
+			// 遍历土星系统中的所有星星碎片
+			if (scene.children[0] && scene.children[0].children[0]) {
+				const saturnSystem = scene.children[0].children[0];
+				saturnSystem.children.forEach((child) => {
+					if (child.userData && child.userData.rotationMultiplier) {
+						// 更新碎片位置
+						const additionalRotation = rotationPerSecond * child.userData.rotationMultiplier * deltaTime;
+						child.userData.originalAngle += additionalRotation;
+						child.position.x = Math.cos(child.userData.originalAngle) * child.userData.radius;
+						child.position.z = Math.sin(child.userData.originalAngle) * child.userData.radius;
+						
+						// 碎片闪烁效果
+						updateFragmentFlicker(child, elapsedTime);
+						
+						// 碎片自转
+						child.rotation.y += deltaTime * 2;
+						child.rotation.x += deltaTime * 1.5;
+					}
+				});
+			}
+		}
+
+		function updateFragmentFlicker(fragment, elapsedTime) {
+			const userData = fragment.userData;
+			if (!userData.nextDimTime) {
+				userData.nextDimTime = elapsedTime + Math.random() * 50 + 30;
+				userData.isDimming = false;
+			}
+			
+			if (!userData.isDimming && elapsedTime >= userData.nextDimTime) {
+				userData.isDimming = true;
+				userData.dimStartTime = elapsedTime;
+				userData.dimDuration = Math.random() * 0.5 + 0.3;
+			}
+			
+			if (userData.isDimming) {
+				const dimElapsed = elapsedTime - userData.dimStartTime;
+				if (dimElapsed < userData.dimDuration) {
+					const dimProgress = dimElapsed / userData.dimDuration;
+					const opacity = 0.9 - (dimProgress * 0.6);
+					fragment.material.opacity = opacity;
+				} else if (dimElapsed < userData.dimDuration * 2) {
+					const brightProgress = (dimElapsed - userData.dimDuration) / userData.dimDuration;
+					const opacity = 0.3 + (brightProgress * 0.6);
+					fragment.material.opacity = opacity;
+				} else {
+					userData.isDimming = false;
+					fragment.material.opacity = 0.9;
+					userData.nextDimTime = elapsedTime + Math.random() * 50 + 30;
+				}
+			} else {
+				fragment.material.opacity = 0.9;
+			}
+		}
+
+	</script>
+</body>
+
+</html>

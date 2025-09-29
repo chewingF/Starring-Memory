@@ -94,6 +94,9 @@ export class SaturnRingScene {
         this.saturnTextureLoaded = false; // 土星贴图是否已加载（成功或失败都视为完成）
         this.starFragmentsReady = false; // 星星碎片是否已创建完成
         
+        // 后处理效果管理器
+        this.postProcessingManager = null;
+        
         this.init();
         this.animate();
         this.setupEventListeners();
@@ -149,6 +152,9 @@ export class SaturnRingScene {
         
         // 初始化陀螺仪
         this.initGyroscope();
+        
+        // 初始化后处理管理器
+        this.initPostProcessing();
     }
 
 
@@ -869,6 +875,18 @@ export class SaturnRingScene {
         if (this.backgroundManager) return this.backgroundManager.updateBackgroundTexture();
     }
 
+    // 初始化后处理管理器
+    async initPostProcessing() {
+        try {
+            // 使用简化像素化效果V2
+            const { SimplePixelEffectV2 } = await import('./src/postprocessing/SimplePixelEffectV2.js');
+            this.postProcessingManager = new SimplePixelEffectV2(this.renderer, this.scene, this.camera);
+            console.log('简化像素化效果V2初始化成功');
+        } catch (error) {
+            console.error('简化像素化效果V2初始化失败:', error);
+        }
+    }
+
     // 初始化陀螺仪
     initGyroscope() {
         // 检查是否支持陀螺仪
@@ -1375,6 +1393,11 @@ export class SaturnRingScene {
             this.camera.updateProjectionMatrix();
             this.renderer.setSize(window.innerWidth, window.innerHeight);
             
+            // 更新后处理管理器尺寸
+            if (this.postProcessingManager) {
+                this.postProcessingManager.setSize(window.innerWidth, window.innerHeight);
+            }
+            
             // 重新计算背景纹理比例
             this.updateBackgroundTexture();
         });
@@ -1598,6 +1621,96 @@ export class SaturnRingScene {
         window.addEventListener('keydown', (event) => {
             if (event.key.toLowerCase() === 'c') {
                 this.toggleControlPanel();
+            }
+        });
+        
+        // 后处理效果控制
+        this.setupPostProcessingControls();
+        
+        // 添加调试快捷键
+        this.setupDebugControls();
+    }
+
+    // 设置后处理效果控制
+    setupPostProcessingControls() {
+        // 后处理模式选择
+        const modeSelect = document.getElementById('postProcessingMode');
+        const pixelControls = document.getElementById('pixelControls');
+        const pixelControls2 = document.getElementById('pixelControls2');
+        const pixelControls3 = document.getElementById('pixelControls3');
+        
+        if (modeSelect) {
+            modeSelect.addEventListener('change', (e) => {
+                const mode = e.target.value;
+                console.log('UI模式切换:', mode);
+                if (this.postProcessingManager) {
+                    this.postProcessingManager.setMode(mode);
+                } else {
+                    console.error('后处理管理器未初始化');
+                }
+                
+                // 显示/隐藏像素化控制
+                const showPixelControls = mode === 'pixel';
+                if (pixelControls) pixelControls.style.display = showPixelControls ? 'block' : 'none';
+                if (pixelControls2) pixelControls2.style.display = showPixelControls ? 'block' : 'none';
+                if (pixelControls3) pixelControls3.style.display = showPixelControls ? 'block' : 'none';
+            });
+        }
+        
+        // 像素大小控制
+        const pixelSizeSlider = document.getElementById('pixelSize');
+        const pixelSizeValue = document.getElementById('pixelSizeValue');
+        
+        if (pixelSizeSlider && pixelSizeValue) {
+            pixelSizeSlider.addEventListener('input', (e) => {
+                const value = parseInt(e.target.value);
+                pixelSizeValue.textContent = value;
+                if (this.postProcessingManager) {
+                    this.postProcessingManager.updatePixelParams({ pixelSize: value });
+                }
+            });
+        }
+        
+        // 法线边缘强度控制
+        const normalEdgeSlider = document.getElementById('normalEdgeStrength');
+        const normalEdgeValue = document.getElementById('normalEdgeStrengthValue');
+        
+        if (normalEdgeSlider && normalEdgeValue) {
+            normalEdgeSlider.addEventListener('input', (e) => {
+                const value = parseFloat(e.target.value);
+                normalEdgeValue.textContent = value.toFixed(2);
+                if (this.postProcessingManager) {
+                    this.postProcessingManager.updatePixelParams({ normalEdgeStrength: value });
+                }
+            });
+        }
+        
+        // 深度边缘强度控制
+        const depthEdgeSlider = document.getElementById('depthEdgeStrength');
+        const depthEdgeValue = document.getElementById('depthEdgeStrengthValue');
+        
+        if (depthEdgeSlider && depthEdgeValue) {
+            depthEdgeSlider.addEventListener('input', (e) => {
+                const value = parseFloat(e.target.value);
+                depthEdgeValue.textContent = value.toFixed(2);
+                if (this.postProcessingManager) {
+                    this.postProcessingManager.updatePixelParams({ depthEdgeStrength: value });
+                }
+            });
+        }
+    }
+
+    // 设置调试控制
+    setupDebugControls() {
+        // 添加调试快捷键：按 'P' 键切换像素化效果
+        window.addEventListener('keydown', (event) => {
+            if (event.key.toLowerCase() === 'p') {
+                if (this.postProcessingManager) {
+                    const currentMode = this.postProcessingManager.getCurrentMode();
+                    const newMode = currentMode === 'pixel' ? 'default' : 'pixel';
+                    this.postProcessingManager.setMode(newMode);
+                    console.log(`调试：切换到${newMode}模式`);
+                }
             }
         });
     }
@@ -1849,7 +1962,12 @@ export class SaturnRingScene {
             }
         });
         
-        this.renderer.render(this.scene, this.camera);
+        // 使用后处理管理器渲染
+        if (this.postProcessingManager) {
+            this.postProcessingManager.render();
+        } else {
+            this.renderer.render(this.scene, this.camera);
+        }
     }
 
     // 检查是否可以结束初始加载界面
