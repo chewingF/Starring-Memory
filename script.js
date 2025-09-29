@@ -9,10 +9,13 @@ class SaturnRingScene {
         this.mouse = new THREE.Vector2();
         this.raycaster = new THREE.Raycaster();
         this.clock = new THREE.Clock();
-        this.photos = [];
-        this.currentPhotoIndex = 0;
         this.isPhotoOpen = false;
-        this.photoIndexCounter = 0; // 用于照片索引分配
+        
+        // 用于弹出照片的最小照片列表（保留点击碎片后的弹窗逻辑）
+        this.photos = [
+            'photos/1ca021cd0e233a042e6100fcee387ded.jpg',
+            'photos/2a5ef61afbeebe062a36a5f3bd475e90.jpg'
+        ];
         
         // 菱形几何体角随机缩放（0.6-0.9），默认开启
         this.randomizeDiamondCorners = true;
@@ -44,8 +47,6 @@ class SaturnRingScene {
         // 星环主体显示状态
         this.isRingVisible = false; //默认关闭
         
-        // 照片缩略图显示状态
-        this.showPhotoThumbnails = false; //默认关闭
         
         // 四个环的透明度控制
         this.ringOpacity = {
@@ -90,10 +91,7 @@ class SaturnRingScene {
         this.animationId = 0; // 动画ID计数器
         
         this.init();
-        this.loadPhotos().then(() => {
-            // 照片加载完成后再创建星星碎片
-            this.createStarFragments();
-        });
+        this.createStarFragments();
         this.animate();
         this.setupEventListeners();
         this.initControlPanel(); // 初始化控制面板状态
@@ -159,89 +157,6 @@ class SaturnRingScene {
         this.initGyroscope();
     }
 
-    // 创建程序化土星表面贴图
-    createSaturnTexture() {
-        const canvas = document.createElement('canvas');
-        canvas.width = 512;
-        canvas.height = 512;
-        const ctx = canvas.getContext('2d');
-        
-        // 基础土星颜色
-        const baseColor = { r: 244, g: 164, b: 96 }; // 沙棕色
-        
-        // 创建渐变背景
-        const gradient = ctx.createRadialGradient(256, 256, 0, 256, 256, 256);
-        gradient.addColorStop(0, `rgb(${baseColor.r}, ${baseColor.g}, ${baseColor.b})`);
-        gradient.addColorStop(0.7, `rgb(${baseColor.r - 20}, ${baseColor.g - 10}, ${baseColor.b - 5})`);
-        gradient.addColorStop(1, `rgb(${baseColor.r - 40}, ${baseColor.g - 20}, ${baseColor.b - 10})`);
-        
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, 512, 512);
-        
-        // 添加云带
-        this.addCloudBands(ctx, baseColor);
-        
-        // 添加大气层效果
-        this.addAtmosphereEffect(ctx);
-        
-        // 添加细节纹理
-        this.addSurfaceDetails(ctx);
-        
-        const texture = new THREE.CanvasTexture(canvas);
-        texture.wrapS = THREE.RepeatWrapping;
-        texture.wrapT = THREE.RepeatWrapping;
-        return texture;
-    }
-
-    addCloudBands(ctx, baseColor) {
-        const bandCount = 8;
-        for (let i = 0; i < bandCount; i++) {
-            const y = (i / bandCount) * 512;
-            const height = 512 / bandCount;
-            
-            // 交替的云带颜色
-            const isDark = i % 2 === 0;
-            const color = isDark ? 
-                `rgb(${baseColor.r - 30}, ${baseColor.g - 15}, ${baseColor.b - 8})` :
-                `rgb(${baseColor.r + 10}, ${baseColor.g + 5}, ${baseColor.b + 2})`;
-            
-            ctx.fillStyle = color;
-            ctx.globalAlpha = 0.6;
-            ctx.fillRect(0, y, 512, height);
-        }
-        ctx.globalAlpha = 1;
-    }
-
-    addAtmosphereEffect(ctx) {
-        // 添加大气层边缘效果
-        const gradient = ctx.createRadialGradient(256, 256, 200, 256, 256, 256);
-        gradient.addColorStop(0, 'rgba(255, 215, 0, 0)');
-        gradient.addColorStop(0.8, 'rgba(255, 215, 0, 0.1)');
-        gradient.addColorStop(1, 'rgba(255, 215, 0, 0.2)');
-        
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, 512, 512);
-    }
-
-    addSurfaceDetails(ctx) {
-        // 添加表面细节和风暴
-        ctx.globalAlpha = 0.3;
-        for (let i = 0; i < 50; i++) {
-            const x = Math.random() * 512;
-            const y = Math.random() * 512;
-            const radius = Math.random() * 20 + 5;
-            
-            const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
-            gradient.addColorStop(0, 'rgba(255, 255, 255, 0.1)');
-            gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-            
-            ctx.fillStyle = gradient;
-            ctx.beginPath();
-            ctx.arc(x, y, radius, 0, Math.PI * 2);
-            ctx.fill();
-        }
-        ctx.globalAlpha = 1;
-    }
 
     // 创建星环纹理
     createRingTexture() {
@@ -285,45 +200,6 @@ class SaturnRingScene {
         ctx.globalAlpha = 1;
     }
 
-    // 创建法线贴图
-    createNormalMap() {
-        const canvas = document.createElement('canvas');
-        canvas.width = 512;
-        canvas.height = 512;
-        const ctx = canvas.getContext('2d');
-        
-        // 创建基础法线贴图
-        const imageData = ctx.createImageData(512, 512);
-        const data = imageData.data;
-        
-        for (let i = 0; i < data.length; i += 4) {
-            const x = (i / 4) % 512;
-            const y = Math.floor((i / 4) / 512);
-            
-            // 生成噪声
-            const noise = this.noise(x * 0.01, y * 0.01);
-            const normalX = (noise * 0.5 + 0.5) * 255;
-            const normalY = (Math.sin(x * 0.02) * 0.5 + 0.5) * 255;
-            const normalZ = 255;
-            
-            data[i] = normalX;     // R
-            data[i + 1] = normalY; // G
-            data[i + 2] = normalZ; // B
-            data[i + 3] = 255;     // A
-        }
-        
-        ctx.putImageData(imageData, 0, 0);
-        
-        const texture = new THREE.CanvasTexture(canvas);
-        texture.wrapS = THREE.RepeatWrapping;
-        texture.wrapT = THREE.RepeatWrapping;
-        return texture;
-    }
-
-    // 简单的噪声函数
-    noise(x, y) {
-        return Math.sin(x * 10) * Math.cos(y * 10) * 0.5;
-    }
     
     // 创建备用纹理（当照片加载失败时使用）
     createFallbackTexture(texture) {
@@ -709,22 +585,6 @@ class SaturnRingScene {
         this.saturnSystem.add(shadow);
     }
 
-    createSaturnBands() {
-        // 创建土星云带
-        const bandCount = 5;
-        for (let i = 0; i < bandCount; i++) {
-            const bandGeometry = new THREE.SphereGeometry(3.01, 32, 32, 0, Math.PI * 2, i * Math.PI / bandCount, Math.PI / bandCount);
-            const bandMaterial = new THREE.MeshPhongMaterial({
-                color: i % 2 === 0 ? 0xe6ac7a : 0xd4a574, // 交替的云带颜色
-                transparent: true,
-                opacity: 0.3,
-                side: THREE.DoubleSide
-            });
-            
-            const band = new THREE.Mesh(bandGeometry, bandMaterial);
-            this.saturn.add(band);
-        }
-    }
 
     createRing() {
         // 创建程序化星环贴图
@@ -811,79 +671,33 @@ class SaturnRingScene {
     }
 
     createStarFragment(ring, ringIndex) {
-        let geometry, material;
-        let size, baseSize; // 声明变量，使其在整个函数中可用
+        // 菱形模式
+        const minSize = 0.06;
+        const maxSize = 0.08;
+        const baseSize = Math.random() * (maxSize - minSize) + minSize;
+        const size = baseSize * this.starFragmentSizeScale; // 应用大小比例
         
-        if (this.showPhotoThumbnails) {
-            // 照片缩略图模式
-            baseSize = 0.15; // 基础大小，适合显示缩略图
-            size = baseSize * this.starFragmentSizeScale; // 应用大小比例
-            geometry = new THREE.PlaneGeometry(size, size);
-            
-            // 获取照片索引
-            const photoIndex = this.getPhotoIndex();
-            const photoPath = this.photos[photoIndex] || this.photos[0];
-            
-            console.log(`创建照片缩略图星星碎片，照片路径: ${photoPath}, 索引: ${photoIndex}`);
-            
-            // 创建照片纹理
-            const textureLoader = new THREE.TextureLoader();
-            const photoTexture = textureLoader.load(
-                photoPath,
-                (texture) => {
-                    // 纹理加载成功
-                    console.log(`照片纹理加载成功: ${photoPath}`);
-                    texture.wrapS = THREE.ClampToEdgeWrapping;
-                    texture.wrapT = THREE.ClampToEdgeWrapping;
-                    texture.minFilter = THREE.LinearFilter;
-                    texture.magFilter = THREE.LinearFilter;
-                    texture.needsUpdate = true;
-                },
-                (progress) => {
-                    console.log(`照片加载进度: ${photoPath}`, progress);
-                },
-                (error) => {
-                    console.error(`照片纹理加载失败: ${photoPath}`, error);
-                    // 如果加载失败，使用一个简单的颜色纹理作为备用
-                    this.createFallbackTexture(photoTexture);
-                }
-            );
-            
-            material = new THREE.MeshBasicMaterial({
-                map: photoTexture,
-                transparent: true,
-                opacity: 0.9,
-                side: THREE.DoubleSide // 双面显示
-            });
-        } else {
-            // 传统菱形模式
-            const minSize = 0.06;
-            const maxSize = 0.08; // 0.1
-            baseSize = Math.random() * (maxSize - minSize) + minSize;
-            size = baseSize * this.starFragmentSizeScale; // 应用大小比例
-            
-            // 创建真正的菱形几何体（尖角朝上），为每个碎片生成并保存随机角缩放
-            const cornerScales = this.randomizeDiamondCorners ? {
-                left: Math.random() * 0.3 + 0.6,
-                right: Math.random() * 0.3 + 0.6,
-                front: Math.random() * 0.3 + 0.6,
-                back: Math.random() * 0.3 + 0.6
-            } : { left: 0.6, right: 0.6, front: 0.6, back: 0.6 };
-            geometry = this.createDiamondGeometry(size, cornerScales);
-            
-            // 使用环的指定颜色
-            const color = ring.color;
-            
-            material = new THREE.MeshPhongMaterial({
-                color: color,
-                transparent: true,
-                opacity: 0.9,
-                shininess: 2, // 增加光泽度
-                specular: 0x888888, // 白色镜面反射，增强对光的反射
-                emissive: color, // 轻微自发光
-                emissiveIntensity: 0.1 // 0.1 * 0.8 = 0.08
-            });
-        }
+        // 创建真正的菱形几何体（尖角朝上），为每个碎片生成并保存随机角缩放
+        const cornerScales = this.randomizeDiamondCorners ? {
+            left: Math.random() * 0.3 + 0.6,
+            right: Math.random() * 0.3 + 0.6,
+            front: Math.random() * 0.3 + 0.6,
+            back: Math.random() * 0.3 + 0.6
+        } : { left: 0.6, right: 0.6, front: 0.6, back: 0.6 };
+        const geometry = this.createDiamondGeometry(size, cornerScales);
+        
+        // 使用环的指定颜色
+        const color = ring.color;
+        
+        const material = new THREE.MeshPhongMaterial({
+            color: color,
+            transparent: true,
+            opacity: 0.9,
+            shininess: 2, // 增加光泽度
+            specular: 0x888888, // 白色镜面反射，增强对光的反射
+            emissive: color, // 轻微自发光
+            emissiveIntensity: 0.1 // 0.1 * 0.8 = 0.08
+        });
         
         const fragment = new THREE.Mesh(geometry, material);
         
@@ -971,11 +785,9 @@ class SaturnRingScene {
             dimStartTime: 0, // 变暗开始时间
             dimDuration: 0, // 变暗持续时间
             nextDimTime: Math.random() * 50 + 30, // 下次变暗的时间（30-80秒后）
-            // 显示模式
-            isPhotoThumbnail: this.showPhotoThumbnails, // 记录当前显示模式
             // 大小相关数据
             originalSize: size, // 存储原始大小（已应用比例）
-            baseSize: this.showPhotoThumbnails ? 0.15 : baseSize, // 存储基础大小（未应用比例）
+            baseSize: baseSize, // 存储基础大小（未应用比例）
             // 随机大小变化效果
             sizeVariation: {
                 enabled: true, // 是否启用大小变化
@@ -999,12 +811,6 @@ class SaturnRingScene {
             }
         };
         
-        // 根据显示模式添加特定数据
-        if (this.showPhotoThumbnails) {
-            const photoIndex = this.getPhotoIndex();
-            fragment.userData.photoIndex = photoIndex; // 存储分配的照片索引
-            fragment.userData.photoTexture = photoTexture; // 存储照片纹理
-        }
         
         // 记录角缩放，便于后续尺寸更新保持形状一致
         if (!fragment.userData) fragment.userData = {};
@@ -1120,21 +926,6 @@ class SaturnRingScene {
         this.updateRingVisibility();
     }
     
-    // 切换照片缩略图显示模式
-    togglePhotoThumbnails() {
-        this.showPhotoThumbnails = !this.showPhotoThumbnails;
-        
-        // 移除现有的星星碎片
-        this.starFragments.forEach(fragment => {
-            this.saturnSystem.remove(fragment);
-        });
-        this.starFragments = [];
-        
-        // 重新创建星星碎片
-        this.createStarFragments();
-        
-        console.log(`照片缩略图模式: ${this.showPhotoThumbnails ? '开启' : '关闭'}`);
-    }
     
     // 更新环碎片比例
     updateRingFragmentRatios() {
@@ -1175,26 +966,6 @@ class SaturnRingScene {
         this.createRing();
     }
     
-    // 智能分配照片索引
-    getPhotoIndex() {
-        const photoCount = this.photos.length;
-        
-        if (photoCount === 0) {
-            return 0; // 如果没有照片，返回0
-        } else if (photoCount >= this.starFragmentCount) {
-            // 照片数量足够，随机选择
-            return Math.floor(Math.random() * photoCount);
-        } else {
-            // 照片数量不足，使用智能分配策略
-            // 先按顺序分配，然后添加随机偏移
-            const baseIndex = this.photoIndexCounter % photoCount;
-            this.photoIndexCounter++;
-            
-            // 添加一些随机性，但保持相对均匀的分布
-            const randomOffset = Math.floor(Math.random() * Math.min(photoCount, 3));
-            return (baseIndex + randomOffset) % photoCount;
-        }
-    }
 
     createStarField() {
         console.log('开始加载背景纹理...');
