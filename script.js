@@ -90,6 +90,10 @@ class SaturnRingScene {
         this.meteorAnimations = new Map(); // 存储正在进行的流星动画
         this.animationId = 0; // 动画ID计数器
         
+        // 资源就绪标记
+        this.saturnTextureLoaded = false; // 土星贴图是否已加载（成功或失败都视为完成）
+        this.starFragmentsReady = false; // 星星碎片是否已创建完成
+        
         this.init();
         this.createStarFragments();
         this.animate();
@@ -486,6 +490,10 @@ class SaturnRingScene {
                 texture.generateMipmaps = true;
                 texture.flipY = false; // 禁用Y轴翻转，保持贴图方向
                 texture.needsUpdate = true;
+
+                // 标记贴图已完成加载
+                this.saturnTextureLoaded = true;
+                this.checkReady();
             },
             (progress) => {
                 console.log('土星贴图加载进度:', (progress.loaded / progress.total * 100) + '%');
@@ -493,6 +501,10 @@ class SaturnRingScene {
             (error) => {
                 console.error('NASA土星贴图加载失败:', error);
                 console.log('使用程序化贴图作为备用');
+
+                // 即便失败也视为加载流程已结束，避免卡在加载页
+                this.saturnTextureLoaded = true;
+                this.checkReady();
             }
         );
         
@@ -668,6 +680,10 @@ class SaturnRingScene {
                 this.saturnSystem.add(fragment);
             }
         });
+
+        // 标记星星碎片准备就绪
+        this.starFragmentsReady = true;
+        this.checkReady();
     }
 
     createStarFragment(ring, ringIndex) {
@@ -2046,17 +2062,38 @@ class SaturnRingScene {
         
         this.renderer.render(this.scene, this.camera);
     }
+
+    // 检查是否可以结束初始加载界面
+    checkReady() {
+        if (this.saturnTextureLoaded && this.starFragmentsReady) {
+            // 只触发一次
+            if (!this._readyDispatched) {
+                this._readyDispatched = true;
+                const event = new Event('scene-ready');
+                document.dispatchEvent(event);
+            }
+        }
+    }
 }
 
 // 页面加载完成后启动
 window.addEventListener('load', () => {
-    // 延迟启动以显示加载动画
-    setTimeout(() => {
-        new SaturnRingScene();
-        
-        // 隐藏加载屏幕
+    const startTime = performance.now();
+    const scene = new SaturnRingScene();
+    // 当场景准备就绪（土星贴图加载完成 + 星星碎片创建完成）后再隐藏加载页，且保证最少显示2秒
+    const onReady = () => {
+        const elapsed = performance.now() - startTime;
+        const minDuration = 2000;
+        const remaining = Math.max(0, minDuration - elapsed);
         setTimeout(() => {
-            document.getElementById('loading-screen').classList.add('fade-out');
-        }, 1000);
-    }, 2000);
+            const loader = document.getElementById('loading-screen');
+            if (loader) loader.classList.add('fade-out');
+        }, remaining);
+        document.removeEventListener('scene-ready', onReady);
+    };
+    document.addEventListener('scene-ready', onReady);
+    // 若极快完成，构造期间可能已触发，做一次同步检查
+    if (scene.saturnTextureLoaded && scene.starFragmentsReady) {
+        onReady();
+    }
 });
