@@ -133,22 +133,131 @@ export class ToonMode {
     
     /**
      * 创建Toon风格的球体
-     * 只创建一个白色球体来替换土星
+     * 创建一个带土星贴图的Toon球体来替换土星
      */
     createToonSpheres() {
-        // 创建主球体 - 高尔夫球般的白色球体，替换土星
-        const mainSphereGeometry = new THREE.SphereGeometry(2, 32, 32);
+        // 创建主球体 - 带土星贴图的Toon球体，替换土星（大小增加10%）
+        const mainSphereGeometry = new THREE.SphereGeometry(2.2, 32, 32);
+        
+        // 创建灰度版本的土星贴图
+        const createGrayscaleTexture = (originalTexture) => {
+            return new Promise((resolve) => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const img = new Image();
+                
+                img.onload = () => {
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    
+                    // 绘制原始图像
+                    ctx.drawImage(img, 0, 0);
+                    
+                    // 获取图像数据
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const data = imageData.data;
+                    
+                    // 转换为灰度
+                    for (let i = 0; i < data.length; i += 4) {
+                        const r = data[i];
+                        const g = data[i + 1];
+                        const b = data[i + 2];
+                        
+                        // 使用亮度公式计算灰度值
+                        const gray = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+                        
+                        data[i] = gray;     // R
+                        data[i + 1] = gray; // G
+                        data[i + 2] = gray; // B
+                        // Alpha通道保持不变
+                    }
+                    
+                    // 将处理后的数据绘制回canvas
+                    ctx.putImageData(imageData, 0, 0);
+                    
+                    // 创建Three.js纹理
+                    const texture = new THREE.CanvasTexture(canvas);
+                    texture.flipY = false;
+                    texture.needsUpdate = true;
+                    
+                    console.log('灰度土星贴图创建成功');
+                    resolve(texture);
+                };
+                
+                img.src = 'Textures/Saturn.jpg';
+            });
+        };
+        
+        // 加载原始土星贴图并创建灰度版本
+        const textureLoader = new THREE.TextureLoader();
+        const saturnTexture = textureLoader.load('Textures/Saturn.jpg', 
+            async (texture) => {
+                console.log('土星贴图加载成功，创建灰度版本');
+                try {
+                    // 创建灰度版本的贴图
+                    const grayscaleTexture = await createGrayscaleTexture(texture);
+                    
+                    // 贴图加载完成后更新材质
+                    if (this.toonSpheres.length > 0) {
+                        const sphere = this.toonSpheres[0];
+                        if (sphere && sphere.material) {
+                            sphere.material.map = grayscaleTexture;
+                            sphere.material.needsUpdate = true;
+                            console.log('灰度土星贴图已应用到Toon球体');
+                        }
+                    }
+                } catch (error) {
+                    console.error('创建灰度贴图失败:', error);
+                    // 使用原始贴图作为备用
+                    if (this.toonSpheres.length > 0) {
+                        const sphere = this.toonSpheres[0];
+                        if (sphere && sphere.material) {
+                            sphere.material.map = texture;
+                            sphere.material.needsUpdate = true;
+                        }
+                    }
+                }
+            },
+            (progress) => {
+                console.log('土星贴图加载进度:', progress);
+            },
+            (error) => {
+                console.error('土星贴图加载失败:', error);
+                console.log('使用纯色材质作为备用');
+            }
+        );
+        
+        // 创建Toon材质，使用土星贴图的B值显示
         const mainSphereMaterial = new THREE.MeshToonMaterial({
-            color: 0xffffff, // 白色
-            shininess: 100,
-            specular: 0x222222
+            color: 0xffffff, // 白色主色调
+            map: saturnTexture, // 土星贴图
+            shininess: 120, // 增加光泽度
+            specular: 0x444444, // 增加高光反射
+            emissive: 0x1a1a1a, // 添加微弱的自发光
+            emissiveIntensity: 0.1 // 自发光强度
         });
+        
         const mainSphere = new THREE.Mesh(mainSphereGeometry, mainSphereMaterial);
         mainSphere.position.set(0, 0, 0);
         mainSphere.castShadow = true;
         mainSphere.receiveShadow = true;
-        this.scene.scene.add(mainSphere);
+        
+        // 将Toon球体添加到与原始土星相同的父节点
+        if (this.scene.saturn && this.scene.saturn.parent) {
+            // 复制原始土星的本地旋转
+            mainSphere.rotation.copy(this.scene.saturn.rotation);
+            // 添加到相同的父节点
+            this.scene.saturn.parent.add(mainSphere);
+            console.log('Toon球体已添加到土星的父节点，本地旋转已同步');
+        } else {
+            // 如果找不到父节点，添加到场景根节点
+            this.scene.scene.add(mainSphere);
+            console.log('Toon球体已添加到场景根节点');
+        }
+        
         this.toonSpheres.push(mainSphere);
+        
+        console.log('Toon球体已创建，带土星贴图，保持白色主色调，本地旋转已同步');
     }
     
     /**
@@ -314,7 +423,7 @@ export class ToonMode {
                 } else if (object.constructor.name === 'HemisphereLight') {
                     multiplier = 50.0; // 半球光：50倍
                 } else if (object.constructor.name === 'AmbientLight') {
-                    multiplier = 80.0; // 环境光：80倍
+                    multiplier = 125.0; // 环境光：125倍
                 } else if (object.constructor.name === 'PointLight') {
                     multiplier = 80.0; // 点光源：80倍
                 } else if (object.constructor.name === 'SpotLight') {
@@ -433,11 +542,21 @@ export class ToonMode {
     update(deltaTime, elapsedTime) {
         if (!this.isActive) return;
         
-        // 让球体旋转
+        // 同步Toon球体与原始土星的本地旋转
+        if (this.scene.saturn && this.toonSpheres.length > 0) {
+            const toonSphere = this.toonSpheres[0];
+            if (toonSphere) {
+                // 复制原始土星的本地旋转状态
+                toonSphere.rotation.copy(this.scene.saturn.rotation);
+            }
+        }
+        
+        // 应用与原始土星相同的旋转逻辑
         this.toonSpheres.forEach((sphere, index) => {
-            sphere.rotation.x += deltaTime * 0.001 * (index + 1);
-            sphere.rotation.y += deltaTime * 0.002 * (index + 1);
-            sphere.rotation.z += deltaTime * 0.0005 * (index + 1);
+            // 使用与原始土星相同的旋转速度和方向
+            sphere.rotation.x += deltaTime * 0.001;
+            sphere.rotation.y += deltaTime * 0.002;
+            sphere.rotation.z += deltaTime * 0.0005;
         });
     }
     
