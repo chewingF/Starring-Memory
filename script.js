@@ -14,6 +14,9 @@ class SaturnRingScene {
         this.isPhotoOpen = false;
         this.photoIndexCounter = 0; // 用于照片索引分配
         
+        // 菱形几何体角随机缩放（0.6-0.9），默认开启
+        this.randomizeDiamondCorners = true;
+        
         // 旋转速度参数：1分钟转几圈（默认不转）
         this.rotationSpeed = 0.1; // 默认0圈/分钟
         
@@ -120,12 +123,12 @@ class SaturnRingScene {
         
         document.getElementById('canvas-container').appendChild(this.renderer.domElement);
 
-        // 添加环境光 - 模拟太阳光
-        const ambientLight = new THREE.AmbientLight(0x404040, 0.2);
+        // 添加环境光 - 下调20%亮度
+        const ambientLight = new THREE.AmbientLight(0x404040, 0.3); // 0.4 * 0.8 = 0.32
         this.scene.add(ambientLight);
 
-        // 添加主光源 - 模拟太阳光
-        this.directionalLight = new THREE.DirectionalLight(0xfff8dc, 1.2);
+        // 添加主光源 - 模拟太阳光，下调20%亮度
+        this.directionalLight = new THREE.DirectionalLight(0xfff8dc, 0.7); // 1.0 * 0.8 = 0.8
         this.directionalLight.castShadow = true;
         this.directionalLight.shadow.mapSize.width = 4096;
         this.directionalLight.shadow.mapSize.height = 4096;
@@ -137,8 +140,8 @@ class SaturnRingScene {
         this.directionalLight.shadow.camera.bottom = -20;
         this.scene.add(this.directionalLight);
 
-        // 添加补光 - 模拟土星反射的光
-        this.fillLight = new THREE.DirectionalLight(0xffd700, 0.3);
+        // 添加补光 - 模拟土星反射的光，下调20%亮度
+        this.fillLight = new THREE.DirectionalLight(0xffd700, 0.1); // 0.5 * 0.8 = 0.4
         this.scene.add(this.fillLight);
 
         // 创建土星
@@ -358,23 +361,31 @@ class SaturnRingScene {
     }
     
     // 创建菱形几何体（尖角朝上）
-    createDiamondGeometry(size) {
+    createDiamondGeometry(size, cornerScales = null) {
         const geometry = new THREE.BufferGeometry();
+        
+        // 角缩放：左右、前、后四个角各自缩放（默认0.6，随机0.6-0.9）
+        const scales = cornerScales || {
+            left: this.randomizeDiamondCorners ? (Math.random() * 0.3 + 0.6) : 0.6,
+            right: this.randomizeDiamondCorners ? (Math.random() * 0.3 + 0.6) : 0.6,
+            front: this.randomizeDiamondCorners ? (Math.random() * 0.3 + 0.6) : 0.6,
+            back: this.randomizeDiamondCorners ? (Math.random() * 0.3 + 0.6) : 0.6
+        };
         
         // 定义菱形的顶点（尖角朝上）
         const vertices = new Float32Array([
             // 上尖角
             0, size, 0,
             // 左角
-            -size * 0.6, 0, 0,
+            -size * scales.left, 0, 0,
             // 右角
-            size * 0.6, 0, 0,
+            size * scales.right, 0, 0,
             // 下尖角
             0, -size, 0,
             // 前角（Z轴正方向）
-            0, 0, size * 0.6,
+            0, 0, size * scales.front,
             // 后角（Z轴负方向）
-            0, 0, -size * 0.6
+            0, 0, -size * scales.back
         ]);
         
         // 定义面（三角形）
@@ -401,6 +412,8 @@ class SaturnRingScene {
         geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
         geometry.computeVertexNormals();
         
+        // 将角缩放保存在几何体的 userData 中，便于后续尺寸更新复用
+        geometry.userData.cornerScales = scales;
         return geometry;
     }
     
@@ -566,7 +579,10 @@ class SaturnRingScene {
                 } else {
                     // 对于菱形几何体，需要重新创建
                     fragment.geometry.dispose(); // 释放旧几何体
-                    fragment.geometry = this.createDiamondGeometry(newScale);
+                    const cornerScales = (fragment.userData && fragment.userData.cornerScales)
+                        ? fragment.userData.cornerScales
+                        : undefined; // 若无记录，走默认逻辑
+                    fragment.geometry = this.createDiamondGeometry(newScale, cornerScales);
                 }
                 
                 // 更新用户数据中的原始大小
@@ -578,20 +594,42 @@ class SaturnRingScene {
     }
 
     createSaturn() {
-        // 土星主体 - 使用高精度几何体和程序化贴图
+        // 土星主体 - 使用高精度几何体和NASA土星贴图
         const saturnGeometry = new THREE.SphereGeometry(3, 128, 128);
         
-        // 创建程序化土星贴图
-        const saturnTexture = this.createSaturnTexture();
-        const normalMap = this.createNormalMap();
+        // 加载NASA土星贴图
+        const saturnTexture = new THREE.TextureLoader().load(
+            'Textures/Saturn.jpg',
+            (texture) => {
+                console.log('NASA土星贴图加载成功');
+                // 设置贴图参数
+                texture.wrapS = THREE.ClampToEdgeWrapping; // 改为边缘夹紧，避免接缝
+                texture.wrapT = THREE.ClampToEdgeWrapping; // 改为边缘夹紧，避免接缝
+                texture.minFilter = THREE.LinearMipmapLinearFilter;
+                texture.magFilter = THREE.LinearFilter;
+                texture.generateMipmaps = true;
+                texture.flipY = false; // 禁用Y轴翻转，保持贴图方向
+                texture.needsUpdate = true;
+            },
+            (progress) => {
+                console.log('土星贴图加载进度:', (progress.loaded / progress.total * 100) + '%');
+            },
+            (error) => {
+                console.error('NASA土星贴图加载失败:', error);
+                console.log('使用程序化贴图作为备用');
+            }
+        );
         
-        // 创建更真实的土星材质
+        // 创建更真实的土星材质（暂时移除法线贴图）
         const saturnMaterial = new THREE.MeshPhongMaterial({
             map: saturnTexture,
-            normalMap: normalMap,
-            shininess: 30,
-            specular: 0x666666,
-            transparent: false
+            // normalMap: normalMap, // 暂时移除法线贴图
+            shininess: 1, // 降低光泽度，减少反射
+            specular: 0x111111, // 降低镜面反射强度
+            transparent: false,
+            // 添加环境光反射，减少暗部，下调20%亮度
+            emissive: new THREE.Color(0x111111), // 轻微自发光
+            emissiveIntensity: 1 // 0.1 * 0.8 = 0.08
         });
         
         this.saturn = new THREE.Mesh(saturnGeometry, saturnMaterial);
@@ -693,9 +731,9 @@ class SaturnRingScene {
         const ringTexture = this.createRingTexture();
         
         // 创建多层星环系统，使用可控制的透明度
-        this.createRingLayer(4, 5.2, ringTexture, this.ringOpacity.inner, 0xfff8dc); // 内环 - 浅黄色
-        this.createRingLayer(5.8, 7, ringTexture, this.ringOpacity.middle, 0xffd700); // 中环 - 金黄色
-        this.createRingLayer(7, 8.5, ringTexture, this.ringOpacity.outer, 0xffa500); // 外环 - 橙色
+        this.createRingLayer(4, 5.2, ringTexture, this.ringOpacity.inner, 0xd99e29); // 内环 - 浅黄色
+        this.createRingLayer(5.8, 7, ringTexture, this.ringOpacity.middle, 0x9c7913); // 中环 - 金黄色
+        this.createRingLayer(7, 8.5, ringTexture, this.ringOpacity.outer, 0xcfa200); // 外环 - 橙色
         
         // 创建卡西尼缝（环之间的空隙）
         this.createCassiniGap(5.2, 5.8);
@@ -819,13 +857,19 @@ class SaturnRingScene {
             });
         } else {
             // 传统菱形模式
-            const minSize = 0.05;
-            const maxSize = minSize * 2; // 0.1
+            const minSize = 0.06;
+            const maxSize = 0.08; // 0.1
             baseSize = Math.random() * (maxSize - minSize) + minSize;
             size = baseSize * this.starFragmentSizeScale; // 应用大小比例
             
-            // 创建真正的菱形几何体（尖角朝上）
-            geometry = this.createDiamondGeometry(size);
+            // 创建真正的菱形几何体（尖角朝上），为每个碎片生成并保存随机角缩放
+            const cornerScales = this.randomizeDiamondCorners ? {
+                left: Math.random() * 0.3 + 0.6,
+                right: Math.random() * 0.3 + 0.6,
+                front: Math.random() * 0.3 + 0.6,
+                back: Math.random() * 0.3 + 0.6
+            } : { left: 0.6, right: 0.6, front: 0.6, back: 0.6 };
+            geometry = this.createDiamondGeometry(size, cornerScales);
             
             // 使用环的指定颜色
             const color = ring.color;
@@ -834,8 +878,10 @@ class SaturnRingScene {
                 color: color,
                 transparent: true,
                 opacity: 0.9,
-                shininess: 100, // 增加光泽度
-                specular: 0xffffff // 白色镜面反射，增强对光的反射
+                shininess: 2, // 增加光泽度
+                specular: 0x888888, // 白色镜面反射，增强对光的反射
+                emissive: color, // 轻微自发光
+                emissiveIntensity: 0.1 // 0.1 * 0.8 = 0.08
             });
         }
         
@@ -959,6 +1005,12 @@ class SaturnRingScene {
             fragment.userData.photoIndex = photoIndex; // 存储分配的照片索引
             fragment.userData.photoTexture = photoTexture; // 存储照片纹理
         }
+        
+        // 记录角缩放，便于后续尺寸更新保持形状一致
+        if (!fragment.userData) fragment.userData = {};
+        fragment.userData.cornerScales = geometry.userData && geometry.userData.cornerScales
+            ? { ...geometry.userData.cornerScales }
+            : cornerScales;
         
         return fragment;
     }
