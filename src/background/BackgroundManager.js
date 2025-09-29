@@ -6,7 +6,15 @@ export class BackgroundManager {
     }
 
     init() {
-        this.createStarField();
+        // 检查当前模式，只在非Toon模式时加载星空背景
+        const modeSelect = document.getElementById('postProcessingMode');
+        const currentMode = modeSelect ? modeSelect.value : 'default';
+        
+        if (currentMode !== 'toon') {
+            this.createStarField();
+        } else {
+            console.log('Toon模式：跳过星空背景加载');
+        }
     }
 
     onResize() {

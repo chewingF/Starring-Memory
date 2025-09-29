@@ -348,7 +348,8 @@
             <select id="postProcessingMode" style="width: 100%; padding: 5px; background: rgba(255,255,255,0.1); border: 1px solid #fff; border-radius: 4px; color: #fff;">
                 <option value="default">默认模式</option>
                 <option value="pixel">像素风格</option>
-                <option value="afterimage" selected>拖尾效果</option>
+                <option value="afterimage">拖尾效果</option>
+                <option value="toon" selected>Toon风格</option>
             </select>
         </div>
         <div class="control-group" id="pixelControls" style="display: none;">
@@ -387,6 +388,38 @@
             <button id="trailTestToggle" style="width: 100%; padding: 8px; background: rgba(255,107,107,0.2); border: 1px solid #ff6b6b; border-radius: 4px; color: #ff6b6b; cursor: pointer;">
                 拖尾测试模式 (加速旋转)
             </button>
+        </div>
+        
+        <!-- Toon风格控制 -->
+        <div class="control-group" id="toonControls" style="display: none;">
+            <button id="toonModeToggle" style="width: 100%; padding: 8px; background: rgba(255,193,7,0.2); border: 1px solid #ffc107; border-radius: 4px; color: #ffc107; cursor: pointer;">
+                Toon风格化渲染
+            </button>
+        </div>
+        <div class="control-group" id="toonControls2" style="display: none;">
+            <label>Toon球体数量</label>
+            <input type="range" id="toonSphereCount" min="1" max="10" step="1" value="3">
+            <div class="value" id="toonSphereCountValue">3</div>
+        </div>
+        <div class="control-group" id="toonControls3" style="display: none;">
+            <label>颜色饱和度</label>
+            <input type="range" id="toonSaturation" min="0.1" max="1.0" step="0.1" value="0.7">
+            <div class="value" id="toonSaturationValue">0.7</div>
+        </div>
+        <div class="control-group" id="toonControls4" style="display: none;">
+            <label>定向光倍率</label>
+            <input type="range" id="directionalLightMultiplier" min="1" max="200" step="1" value="3">
+            <div class="value" id="directionalLightMultiplierValue">3x</div>
+        </div>
+        <div class="control-group" id="toonControls5" style="display: none;">
+            <label>半球光倍率</label>
+            <input type="range" id="hemisphereLightMultiplier" min="1" max="200" step="1" value="50">
+            <div class="value" id="hemisphereLightMultiplierValue">50x</div>
+        </div>
+        <div class="control-group" id="toonControls6" style="display: none;">
+            <label>环境光倍率</label>
+            <input type="range" id="ambientLightMultiplier" min="1" max="200" step="1" value="80">
+            <div class="value" id="ambientLightMultiplierValue">80x</div>
         </div>
         
         <!-- 添加底部边距，确保滚动区域足够 -->

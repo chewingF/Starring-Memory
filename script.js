@@ -1648,6 +1648,9 @@ export class SaturnRingScene {
         // 后处理效果控制
         this.setupPostProcessingControls();
         
+        // Toon模式控制
+        this.setupToonControls();
+        
         // 添加调试快捷键
         this.setupDebugControls();
     }
@@ -1659,6 +1662,12 @@ export class SaturnRingScene {
         const pixelControls = document.getElementById('pixelControls');
         const pixelControls2 = document.getElementById('pixelControls2');
         const pixelControls3 = document.getElementById('pixelControls3');
+        const toonControls = document.getElementById('toonControls');
+        const toonControls2 = document.getElementById('toonControls2');
+        const toonControls3 = document.getElementById('toonControls3');
+        const toonControls4 = document.getElementById('toonControls4');
+        const toonControls5 = document.getElementById('toonControls5');
+        const toonControls6 = document.getElementById('toonControls6');
         
         if (modeSelect) {
             modeSelect.addEventListener('change', (e) => {
@@ -1670,6 +1679,15 @@ export class SaturnRingScene {
                 if (pixelControls) pixelControls.style.display = showPixelControls ? 'block' : 'none';
                 if (pixelControls2) pixelControls2.style.display = showPixelControls ? 'block' : 'none';
                 if (pixelControls3) pixelControls3.style.display = showPixelControls ? 'block' : 'none';
+                
+                // 显示/隐藏Toon控制
+                const showToonControls = mode === 'toon';
+                if (toonControls) toonControls.style.display = showToonControls ? 'block' : 'none';
+                if (toonControls2) toonControls2.style.display = showToonControls ? 'block' : 'none';
+                if (toonControls3) toonControls3.style.display = showToonControls ? 'block' : 'none';
+                if (toonControls4) toonControls4.style.display = showToonControls ? 'block' : 'none';
+                if (toonControls5) toonControls5.style.display = showToonControls ? 'block' : 'none';
+                if (toonControls6) toonControls6.style.display = showToonControls ? 'block' : 'none';
                 
                 console.log('模式切换完成:', mode, '像素控制显示:', showPixelControls);
             });
@@ -2009,6 +2027,99 @@ export class SaturnRingScene {
                 const event = new Event('scene-ready');
                 document.dispatchEvent(event);
             }
+        }
+    }
+    
+    // 设置Toon模式控制
+    setupToonControls() {
+        // Toon模式切换按钮
+        const toonModeToggle = document.getElementById('toonModeToggle');
+        if (toonModeToggle) {
+            toonModeToggle.addEventListener('click', () => {
+                if (this.toonMode) {
+                    this.toonMode.toggle();
+                    const isActive = this.toonMode.isActive;
+                    toonModeToggle.textContent = isActive ? '禁用Toon风格' : '启用Toon风格';
+                    toonModeToggle.style.background = isActive ? 
+                        'rgba(76,175,80,0.2)' : 'rgba(255,193,7,0.2)';
+                    toonModeToggle.style.borderColor = isActive ? '#4caf50' : '#ffc107';
+                    toonModeToggle.style.color = isActive ? '#4caf50' : '#ffc107';
+                }
+            });
+        }
+        
+        // Toon球体数量控制
+        const toonSphereCountSlider = document.getElementById('toonSphereCount');
+        const toonSphereCountValue = document.getElementById('toonSphereCountValue');
+        
+        if (toonSphereCountSlider && toonSphereCountValue) {
+            toonSphereCountSlider.addEventListener('input', (e) => {
+                const value = parseInt(e.target.value);
+                toonSphereCountValue.textContent = value;
+                // 这里可以更新Toon球体数量
+                if (this.toonMode) {
+                    // 可以添加更新球体数量的逻辑
+                    console.log('Toon球体数量:', value);
+                }
+            });
+        }
+        
+        // 颜色饱和度控制
+        const toonSaturationSlider = document.getElementById('toonSaturation');
+        const toonSaturationValue = document.getElementById('toonSaturationValue');
+        
+        if (toonSaturationSlider && toonSaturationValue) {
+            toonSaturationSlider.addEventListener('input', (e) => {
+                const value = parseFloat(e.target.value);
+                toonSaturationValue.textContent = value.toFixed(1);
+                // 这里可以更新颜色饱和度
+                if (this.toonMode) {
+                    // 可以添加更新颜色饱和度的逻辑
+                    console.log('Toon颜色饱和度:', value);
+                }
+            });
+        }
+        
+        // 定向光倍率控制
+        const directionalLightSlider = document.getElementById('directionalLightMultiplier');
+        const directionalLightValue = document.getElementById('directionalLightMultiplierValue');
+        
+        if (directionalLightSlider && directionalLightValue) {
+            directionalLightSlider.addEventListener('input', (e) => {
+                const value = parseInt(e.target.value);
+                directionalLightValue.textContent = value + 'x';
+                if (this.toonMode) {
+                    this.toonMode.updateLightMultiplier('DirectionalLight', value);
+                }
+            });
+        }
+        
+        // 半球光倍率控制
+        const hemisphereLightSlider = document.getElementById('hemisphereLightMultiplier');
+        const hemisphereLightValue = document.getElementById('hemisphereLightMultiplierValue');
+        
+        if (hemisphereLightSlider && hemisphereLightValue) {
+            hemisphereLightSlider.addEventListener('input', (e) => {
+                const value = parseInt(e.target.value);
+                hemisphereLightValue.textContent = value + 'x';
+                if (this.toonMode) {
+                    this.toonMode.updateLightMultiplier('HemisphereLight', value);
+                }
+            });
+        }
+        
+        // 环境光倍率控制
+        const ambientLightSlider = document.getElementById('ambientLightMultiplier');
+        const ambientLightValue = document.getElementById('ambientLightMultiplierValue');
+        
+        if (ambientLightSlider && ambientLightValue) {
+            ambientLightSlider.addEventListener('input', (e) => {
+                const value = parseInt(e.target.value);
+                ambientLightValue.textContent = value + 'x';
+                if (this.toonMode) {
+                    this.toonMode.updateLightMultiplier('AmbientLight', value);
+                }
+            });
         }
     }
 }

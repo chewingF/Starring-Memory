@@ -6,6 +6,7 @@ import { FragmentInteractionController } from '../interactions/FragmentInteracti
 import { AfterimageEffect } from '../postprocessing/AfterimageEffect.js';
 import { AfterimageControls } from '../controls/AfterimageControls.js';
 import { TrailTestMode } from '../effects/TrailTestMode.js';
+import { ToonMode } from '../effects/ToonMode.js';
 
 export class SaturnRingScene extends LegacyScene {
     constructor() {
@@ -49,10 +50,24 @@ export class SaturnRingScene extends LegacyScene {
             if (this.starFragmentManager && typeof this.starFragmentManager.update === 'function') {
                 this.starFragmentManager.update(deltaTime, elapsedTime, fragmentRotationPerSecond);
             }
+            
+            // Toon模式更新
+            if (this.toonMode && typeof this.toonMode.update === 'function') {
+                this.toonMode.update(deltaTime, elapsedTime);
+            }
 
             // 检查当前模式，决定使用哪种渲染方式
             const modeSelect = document.getElementById('postProcessingMode');
             const currentMode = modeSelect ? modeSelect.value : 'default';
+            
+            // 处理Toon模式切换
+            if (this.toonMode) {
+                if (currentMode === 'toon' && !this.toonMode.isActive) {
+                    this.toonMode.enable();
+                } else if (currentMode !== 'toon' && this.toonMode.isActive) {
+                    this.toonMode.disable();
+                }
+            }
             
             // 检查composer是否可用且像素模式是否启用
             const useComposer = this.composer && currentMode === 'pixel';
@@ -124,13 +139,10 @@ export class SaturnRingScene extends LegacyScene {
         // 初始化拖尾测试模式
         this.trailTestMode = new TrailTestMode(this);
         
-        // 默认启用拖尾测试模式
-        setTimeout(() => {
-            if (this.trailTestMode) {
-                this.trailTestMode.enable();
-                console.log('默认启用拖尾测试模式');
-            }
-        }, 1000); // 延迟1秒启用，确保场景完全加载
+        // 初始化Toon风格化渲染模式
+        this.toonMode = new ToonMode(this);
+        
+        // Toon模式将通过模式选择器控制
 
         this._managers = [
             this.backgroundManager,
