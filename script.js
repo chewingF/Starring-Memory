@@ -1,4 +1,4 @@
-class SaturnRingScene {
+export class SaturnRingScene {
     constructor() {
         this.scene = null;
         this.camera = null;
@@ -95,7 +95,6 @@ class SaturnRingScene {
         this.starFragmentsReady = false; // 星星碎片是否已创建完成
         
         this.init();
-        this.createStarFragments();
         this.animate();
         this.setupEventListeners();
         this.initControlPanel(); // 初始化控制面板状态
@@ -146,62 +145,26 @@ class SaturnRingScene {
         this.fillLight = new THREE.DirectionalLight(0xffd700, 0.1); // 0.5 * 0.8 = 0.4
         this.scene.add(this.fillLight);
 
-        // 创建土星
-        this.createSaturn();
-        
-        // 创建星环
-        this.createRing();
-        
-        // 星星碎片将在照片加载完成后创建
-        
-        // 添加星空背景
-        this.createStarField();
+        // 土星、星环、背景由管理器接管，不在基类 init() 中直接调用
         
         // 初始化陀螺仪
         this.initGyroscope();
     }
 
 
-    // 创建星环纹理
+    // 创建星环纹理（委托到 PlanetarySystem）
     createRingTexture() {
-        const canvas = document.createElement('canvas');
-        canvas.width = 1024;
-        canvas.height = 64;
-        const ctx = canvas.getContext('2d');
-        
-        // 创建径向渐变
-        const gradient = ctx.createLinearGradient(0, 0, 1024, 0);
-        gradient.addColorStop(0, 'rgba(200, 200, 200, 0)');
-        gradient.addColorStop(0.2, 'rgba(180, 180, 180, 0.3)');
-        gradient.addColorStop(0.4, 'rgba(160, 160, 160, 0.5)');
-        gradient.addColorStop(0.6, 'rgba(140, 140, 140, 0.4)');
-        gradient.addColorStop(0.8, 'rgba(120, 120, 120, 0.2)');
-        gradient.addColorStop(1, 'rgba(100, 100, 100, 0)');
-        
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, 1024, 64);
-        
-        // 添加环的细节
-        this.addRingDetails(ctx);
-        
-        const texture = new THREE.CanvasTexture(canvas);
-        texture.wrapS = THREE.RepeatWrapping;
-        texture.wrapT = THREE.RepeatWrapping;
-        return texture;
+        if (this.planetarySystem && typeof this.planetarySystem.createRingTexture === 'function') {
+            return this.planetarySystem.createRingTexture();
+        }
+        throw new Error('PlanetarySystem not initialized');
     }
 
     addRingDetails(ctx) {
-        // 添加环的颗粒感
-        ctx.globalAlpha = 0.1;
-        for (let i = 0; i < 1000; i++) {
-            const x = Math.random() * 1024;
-            const y = Math.random() * 64;
-            const size = Math.random() * 2 + 1;
-            
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-            ctx.fillRect(x, y, size, size);
+        if (this.planetarySystem && typeof this.planetarySystem.addRingDetails === 'function') {
+            return this.planetarySystem.addRingDetails(ctx);
         }
-        ctx.globalAlpha = 1;
+        throw new Error('PlanetarySystem not initialized');
     }
 
     
@@ -474,87 +437,10 @@ class SaturnRingScene {
     }
 
     createSaturn() {
-        // 土星主体 - 使用高精度几何体和NASA土星贴图
-        const saturnGeometry = new THREE.SphereGeometry(3, 128, 128);
-        
-        // 加载NASA土星贴图
-        const saturnTexture = new THREE.TextureLoader().load(
-            'Textures/Saturn.jpg',
-            (texture) => {
-                console.log('NASA土星贴图加载成功');
-                // 设置贴图参数
-                texture.wrapS = THREE.ClampToEdgeWrapping; // 改为边缘夹紧，避免接缝
-                texture.wrapT = THREE.ClampToEdgeWrapping; // 改为边缘夹紧，避免接缝
-                texture.minFilter = THREE.LinearMipmapLinearFilter;
-                texture.magFilter = THREE.LinearFilter;
-                texture.generateMipmaps = true;
-                texture.flipY = false; // 禁用Y轴翻转，保持贴图方向
-                texture.needsUpdate = true;
-
-                // 标记贴图已完成加载
-                this.saturnTextureLoaded = true;
-                this.checkReady();
-            },
-            (progress) => {
-                console.log('土星贴图加载进度:', (progress.loaded / progress.total * 100) + '%');
-            },
-            (error) => {
-                console.error('NASA土星贴图加载失败:', error);
-                console.log('使用程序化贴图作为备用');
-
-                // 即便失败也视为加载流程已结束，避免卡在加载页
-                this.saturnTextureLoaded = true;
-                this.checkReady();
-            }
-        );
-        
-        // 创建更真实的土星材质（暂时移除法线贴图）
-        const saturnMaterial = new THREE.MeshPhongMaterial({
-            map: saturnTexture,
-            // normalMap: normalMap, // 暂时移除法线贴图
-            shininess: 1, // 降低光泽度，减少反射
-            specular: 0x111111, // 降低镜面反射强度
-            transparent: false,
-            // 添加环境光反射，减少暗部，下调20%亮度
-            emissive: new THREE.Color(0x111111), // 轻微自发光
-            emissiveIntensity: 1 // 0.1 * 0.8 = 0.08
-        });
-        
-        this.saturn = new THREE.Mesh(saturnGeometry, saturnMaterial);
-        this.saturn.castShadow = true;
-        this.saturn.receiveShadow = true;
-        
-        // 创建土星系统容器，用于整体旋转
-        this.saturnSystem = new THREE.Group();
-        this.saturnSystem.add(this.saturn);
-        
-        // 创建旋转轴容器，用于控制旋转
-        this.rotationAxis = new THREE.Group();
-        this.rotationAxis.add(this.saturnSystem);
-        
-        // 设置土星系统倾斜27°，并顺时针调整倾角方向
-        this.rotationAxis.rotation.x = (27 * Math.PI) / 180; // 27度转换为弧度
-        this.rotationAxis.rotation.z = (15 * Math.PI) / 180; // 顺时针调整15度
-        
-        this.scene.add(this.rotationAxis);
-        
-        // 土星大气层效果
-        const atmosphereGeometry = new THREE.SphereGeometry(3.05, 64, 64);
-        const atmosphereMaterial = new THREE.MeshPhongMaterial({
-            color: 0xffd700,
-            transparent: true,
-            opacity: 0.1,
-            side: THREE.BackSide
-        });
-        
-        const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
-        this.saturn.add(atmosphere);
-        
-        // 添加土星极地风暴
-        this.createPolarStorms();
-        
-        // 添加土星阴影 - 暂时关闭
-        // this.createSaturnShadow();
+        if (this.planetarySystem && typeof this.planetarySystem.createSaturn === 'function') {
+            return this.planetarySystem.createSaturn();
+        }
+        throw new Error('PlanetarySystem not initialized');
     }
 
     createPolarStorms() {
@@ -599,19 +485,10 @@ class SaturnRingScene {
 
 
     createRing() {
-        // 创建程序化星环贴图
-        const ringTexture = this.createRingTexture();
-        
-        // 创建多层星环系统，使用可控制的透明度
-        this.createRingLayer(4, 5.2, ringTexture, this.ringOpacity.inner, 0xd99e29); // 内环 - 浅黄色
-        this.createRingLayer(5.8, 7, ringTexture, this.ringOpacity.middle, 0x9c7913); // 中环 - 金黄色
-        this.createRingLayer(7, 8.5, ringTexture, this.ringOpacity.outer, 0xcfa200); // 外环 - 橙色
-        
-        // 创建卡西尼缝（环之间的空隙）
-        this.createCassiniGap(5.2, 5.8);
-        
-        // 根据状态设置星环的可见性
-        this.updateRingVisibility();
+        if (this.planetarySystem && typeof this.planetarySystem.createRing === 'function') {
+            return this.planetarySystem.createRing();
+        }
+        throw new Error('PlanetarySystem not initialized');
     }
 
     createRingLayer(innerRadius, outerRadius, texture, opacity, color = 0xffffff) {
@@ -984,100 +861,12 @@ class SaturnRingScene {
     
 
     createStarField() {
-        console.log('开始加载背景纹理...');
-        
-        // 检查是否通过HTTP服务器访问
-        const isHttpServer = window.location.protocol === 'http:' || window.location.protocol === 'https:';
-        
-        if (!isHttpServer) {
-            console.warn('⚠️ 检测到使用file://协议访问，这会导致CORS错误');
-            console.warn('请通过HTTP服务器访问：');
-            console.warn('1. 运行 start.bat 或 python server.py');
-            console.warn('2. 然后访问 http://localhost:8000');
-            console.warn('现在使用纯色背景作为备用');
-            this.scene.background = new THREE.Color(0x000011);
-            return;
-        }
-        
-        // 使用简单的纹理加载方式
-        const textureLoader = new THREE.TextureLoader();
-        
-        // 立即加载纹理
-        const texture = textureLoader.load(
-            'Textures/bg.jpg',
-            (loadedTexture) => {
-                console.log('背景纹理加载成功');
-                // 设置纹理参数，实现cover效果（保持长宽比，铺满屏幕，超出部分裁剪）
-                loadedTexture.wrapS = THREE.ClampToEdgeWrapping;
-                loadedTexture.wrapT = THREE.ClampToEdgeWrapping;
-                loadedTexture.minFilter = THREE.LinearFilter;
-                loadedTexture.magFilter = THREE.LinearFilter;
-                
-                // 计算纹理的缩放比例，实现cover效果，并放大10%
-                const aspect = window.innerWidth / window.innerHeight;
-                const textureAspect = loadedTexture.image.width / loadedTexture.image.height;
-                const scaleFactor = 0.9; // 放大10%（repeat值越小，纹理越大）
-                
-                if (aspect > textureAspect) {
-                    // 屏幕更宽，纹理需要放大以覆盖整个屏幕宽度，垂直方向会超出
-                    loadedTexture.repeat.x = scaleFactor;
-                    loadedTexture.repeat.y = (textureAspect / aspect) * scaleFactor;
-                    loadedTexture.offset.x = (1 - loadedTexture.repeat.x) / 2;
-                    loadedTexture.offset.y = (1 - loadedTexture.repeat.y) / 2;
-                } else {
-                    // 屏幕更高，纹理需要放大以覆盖整个屏幕高度，水平方向会超出
-                    loadedTexture.repeat.x = (aspect / textureAspect) * scaleFactor;
-                    loadedTexture.repeat.y = scaleFactor;
-                    loadedTexture.offset.x = (1 - loadedTexture.repeat.x) / 2;
-                    loadedTexture.offset.y = (1 - loadedTexture.repeat.y) / 2;
-                }
-                
-                // 立即设置为场景背景
-                this.scene.background = loadedTexture;
-                console.log('背景已设置为纹理，左右铺满且保持长宽比');
-            },
-            (progress) => {
-                console.log('加载进度:', progress);
-            },
-            (error) => {
-                console.error('背景纹理加载失败:', error);
-                // 使用纯色背景作为备用
-                this.scene.background = new THREE.Color(0x000011);
-                console.log('使用纯色背景作为备用');
-            }
-        );
-        
-        console.log('纹理加载器已创建');
+        if (this.backgroundManager) return this.backgroundManager.createStarField();
     }
     
     // 更新背景纹理比例
     updateBackgroundTexture() {
-        if (this.scene.background && this.scene.background.isTexture) {
-            const texture = this.scene.background;
-            const aspect = window.innerWidth / window.innerHeight;
-            const textureAspect = texture.image.width / texture.image.height;
-            const scaleFactor = 0.9; // 放大10%（repeat值越小，纹理越大）
-            
-            if (aspect > textureAspect) {
-                // 屏幕更宽，纹理需要放大以覆盖整个屏幕宽度，垂直方向会超出
-                texture.repeat.x = scaleFactor;
-                texture.repeat.y = (textureAspect / aspect) * scaleFactor;
-                texture.offset.x = (1 - texture.repeat.x) / 2;
-                texture.offset.y = (1 - texture.repeat.y) / 2;
-            } else {
-                // 屏幕更高，纹理需要放大以覆盖整个屏幕高度，水平方向会超出
-                texture.repeat.x = (aspect / textureAspect) * scaleFactor;
-                texture.repeat.y = scaleFactor;
-                texture.offset.x = (1 - texture.repeat.x) / 2;
-                texture.offset.y = (1 - texture.repeat.y) / 2;
-            }
-            
-            texture.needsUpdate = true;
-            console.log('背景纹理比例已更新（cover效果，放大10%）');
-            
-            // 重新应用陀螺仪视差效果
-            this.updateBackgroundParallax();
-        }
+        if (this.backgroundManager) return this.backgroundManager.updateBackgroundTexture();
     }
 
     // 初始化陀螺仪
@@ -2076,24 +1865,4 @@ class SaturnRingScene {
     }
 }
 
-// 页面加载完成后启动
-window.addEventListener('load', () => {
-    const startTime = performance.now();
-    const scene = new SaturnRingScene();
-    // 当场景准备就绪（土星贴图加载完成 + 星星碎片创建完成）后再隐藏加载页，且保证最少显示2秒
-    const onReady = () => {
-        const elapsed = performance.now() - startTime;
-        const minDuration = 2000;
-        const remaining = Math.max(0, minDuration - elapsed);
-        setTimeout(() => {
-            const loader = document.getElementById('loading-screen');
-            if (loader) loader.classList.add('fade-out');
-        }, remaining);
-        document.removeEventListener('scene-ready', onReady);
-    };
-    document.addEventListener('scene-ready', onReady);
-    // 若极快完成，构造期间可能已触发，做一次同步检查
-    if (scene.saturnTextureLoaded && scene.starFragmentsReady) {
-        onReady();
-    }
-});
+// 启动逻辑已移动到 src/main.js
