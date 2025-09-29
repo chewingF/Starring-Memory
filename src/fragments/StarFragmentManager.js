@@ -137,6 +137,7 @@ export class StarFragmentManager {
             nextDimTime: Math.random() * 50 + 30,
             originalSize: size,
             baseSize: baseSize,
+            originalScale: 1.0, // 保存原始缩放比例
             sizeVariation: {
                 enabled: true,
                 minScale: 0.7,

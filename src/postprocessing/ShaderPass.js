@@ -1,4 +1,4 @@
-// Three.js 通过全局变量 THREE 访问
+import * as THREE from 'three';
 import { Pass, FullScreenQuad } from './Pass.js';
 
 /**

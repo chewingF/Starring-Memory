@@ -346,8 +346,9 @@
         <div class="control-group">
             <label>效果模式</label>
             <select id="postProcessingMode" style="width: 100%; padding: 5px; background: rgba(255,255,255,0.1); border: 1px solid #fff; border-radius: 4px; color: #fff;">
-                <option value="default" selected>默认模式</option>
+                <option value="default">默认模式</option>
                 <option value="pixel">像素风格</option>
+                <option value="afterimage" selected>拖尾效果</option>
             </select>
         </div>
         <div class="control-group" id="pixelControls" style="display: none;">
@@ -364,6 +365,28 @@
             <label>深度边缘强度</label>
             <input type="range" id="depthEdgeStrength" min="0" max="1" step="0.05" value="1.0">
             <div class="value" id="depthEdgeStrengthValue">1.0</div>
+        </div>
+        
+        <!-- 拖尾效果控制 -->
+        <div class="control-group" id="afterimageControls" style="display: none;">
+            <label>拖尾停留时间</label>
+            <input type="range" id="afterimageDamp" min="0.7" max="0.99" step="0.01" value="0.98">
+            <div class="value" id="afterimageDampValue">超长</div>
+        </div>
+        <div class="control-group" id="afterimageControls2" style="display: none;">
+            <label>拖尾强度</label>
+            <input type="range" id="afterimageStrength" min="0.1" max="1.0" step="0.05" value="1.0">
+            <div class="value" id="afterimageStrengthValue">1.0</div>
+        </div>
+        <div class="control-group" id="afterimageControls3" style="display: none;">
+            <label>速度倍数</label>
+            <input type="range" id="trailSpeedMultiplier" min="1" max="20" step="1" value="10">
+            <div class="value" id="trailSpeedMultiplierValue">10x</div>
+        </div>
+        <div class="control-group" id="afterimageControls4" style="display: none;">
+            <button id="trailTestToggle" style="width: 100%; padding: 8px; background: rgba(255,107,107,0.2); border: 1px solid #ff6b6b; border-radius: 4px; color: #ff6b6b; cursor: pointer;">
+                拖尾测试模式 (加速旋转)
+            </button>
         </div>
         
         <!-- 添加底部边距，确保滚动区域足够 -->
