@@ -180,3 +180,4 @@ class RenderPass extends Pass {
 }
 
 export { RenderPass };
+
