@@ -1827,22 +1827,41 @@ export class SaturnRingScene {
         const modalImage = document.getElementById('modal-image');
         const modalTitle = document.getElementById('modal-title');
         
-        // 设置照片
+        // 隐藏标题文字
+        modalTitle.style.display = 'none';
+        
+        // 设置照片并等待加载完成
+        modalImage.onload = () => {
+            // 照片加载完成后，根据照片尺寸设置弹窗尺寸
+            const maxWidth = window.innerWidth * 0.9;
+            const maxHeight = window.innerHeight * 0.9;
+            
+            let imageWidth = modalImage.naturalWidth;
+            let imageHeight = modalImage.naturalHeight;
+            
+            // 计算缩放比例，确保照片不超出屏幕
+            const scaleX = maxWidth / imageWidth;
+            const scaleY = maxHeight / imageHeight;
+            const scale = Math.min(scaleX, scaleY, 1);
+            
+            // 设置弹窗尺寸，比照片大50像素（上下左右各25像素）
+            modal.style.width = (imageWidth * scale + 50) + 'px';
+            modal.style.height = (imageHeight * scale + 50) + 'px';
+            
+            // 显示模态框
+            modal.classList.add('show');
+        };
+        
+        // 设置照片源，触发加载
         modalImage.src = this.photos[photoIndex];
-        
-        // 从照片路径中提取文件名（去掉photos/前缀和扩展名）
-        const photoPath = this.photos[photoIndex];
-        const fileName = photoPath.split('/').pop(); // 获取文件名
-        const fileNameWithoutExt = fileName.split('.').slice(0, -1).join('.'); // 去掉扩展名
-        
-        // 显示文件名作为标题
-        modalTitle.textContent = fileNameWithoutExt;
-        
-        // 显示模态框
-        modal.classList.add('show');
         
         // 标记照片已打开
         this.isPhotoOpen = true;
+        
+        // 在Toon模式下设置照片窗口背景颜色与星星碎片颜色一致
+        if (this.toonMode && this.toonMode.isActive) {
+            this.toonMode.setPhotoModalBackground(fragment);
+        }
         
         // 添加点击效果
         fragment.scale.set(1.5, 1.5, 1.5);
@@ -1853,12 +1872,21 @@ export class SaturnRingScene {
             fragment.material.specular = new THREE.Color(0xffffff); // 增强镜面反射
         }
         
-        console.log(`显示照片: ${fileNameWithoutExt} (索引: ${photoIndex})`);
+        console.log(`显示照片 (索引: ${photoIndex})`);
     }
 
     hidePhoto() {
         const modal = document.getElementById('photo-modal');
+        const modalTitle = document.getElementById('modal-title');
+        
         modal.classList.remove('show');
+        
+        // 重置弹窗尺寸
+        modal.style.width = '';
+        modal.style.height = '';
+        
+        // 恢复标题显示
+        modalTitle.style.display = 'block';
         
         // 标记照片已关闭
         this.isPhotoOpen = false;

@@ -35,6 +35,20 @@ export class ToonMode {
         
         // 光照可见性管理
         this.originalLightVisibility = new Map();
+        
+        // 炫光效果相关
+        this.bloomLayer = new THREE.Layers();
+        this.bloomLayer.set(1); // 设置图层1用于炫光
+        this.bloomParams = {
+            exposure: 1,
+            bloomStrength: 1.5,
+            bloomRadius: 4,
+            bloomThreshold: 0.85
+        };
+        this.bloomEnabled = true;
+        
+        // 照片窗口背景颜色管理
+        this.originalModalBackground = null;
     }
     
     /**
@@ -66,7 +80,10 @@ export class ToonMode {
         // 重新定位光照
         this.repositionLighting();
         
-        console.log('Toon风格化渲染模式已启用 - 土星已替换为单个白色球体，所有光源启用并设置独立倍率');
+        // 初始化炫光效果
+        this.setupBloomEffect();
+        
+        console.log('Toon风格化渲染模式已启用 - 土星已替换为单个白色球体，所有光源启用并设置独立倍率，炫光效果已启用');
     }
     
     /**
@@ -105,7 +122,13 @@ export class ToonMode {
         // 恢复所有光源的原始强度
         this.restoreAllLightIntensities();
         
-        console.log('Toon风格化渲染模式已禁用 - 土星已恢复，所有光源强度和位置已恢复');
+        // 清理炫光效果
+        this.cleanupBloomEffect();
+        
+        // 恢复照片窗口背景颜色
+        this.restorePhotoModalBackground();
+        
+        console.log('Toon风格化渲染模式已禁用 - 土星已恢复，所有光源强度和位置已恢复，炫光效果已清理，照片窗口背景已恢复');
     }
     
     /**
@@ -231,9 +254,9 @@ export class ToonMode {
         const mainSphereMaterial = new THREE.MeshToonMaterial({
             color: 0xffffff, // 白色主色调
             map: saturnTexture, // 土星贴图
-            shininess: 120, // 增加光泽度
-            specular: 0x444444, // 增加高光反射
-            emissive: 0x1a1a1a, // 添加微弱的自发光
+            shininess: 120, // 光泽度
+            specular: 0x444444, // 高光反射
+            emissive: 0x1a1a1a, // 微弱的自发光
             emissiveIntensity: 0.1 // 自发光强度
         });
         
@@ -241,6 +264,9 @@ export class ToonMode {
         mainSphere.position.set(0, 0, 0);
         mainSphere.castShadow = true;
         mainSphere.receiveShadow = true;
+        
+        // 为球体添加炫光图层
+        mainSphere.layers.enable(1);
         
         // 将Toon球体添加到与原始土星相同的父节点
         if (this.scene.saturn && this.scene.saturn.parent) {
@@ -507,13 +533,15 @@ export class ToonMode {
             // 随机选择Toon颜色
             const randomColor = this.toonColors[Math.floor(Math.random() * this.toonColors.length)];
             
-            // 创建Toon材质
+            // 创建Toon材质，增强炫光效果
             const toonMaterial = new THREE.MeshToonMaterial({
                 color: randomColor,
                 transparent: true,
                 opacity: 0.9,
-                emissive: randomColor,
-                emissiveIntensity: 0.1
+                shininess: 200, // 增强光泽度
+                specular: 0x888888, // 增强高光反射
+                emissive: randomColor, // 使用碎片颜色作为自发光
+                emissiveIntensity: 0.8 // 大幅增强自发光强度实现炫光效果
             });
             
             fragment.material = toonMaterial;
@@ -558,6 +586,71 @@ export class ToonMode {
             sphere.rotation.y += deltaTime * 0.002;
             sphere.rotation.z += deltaTime * 0.0005;
         });
+    }
+    
+    /**
+     * 设置炫光效果
+     */
+    setupBloomEffect() {
+        this.bloomEnabled = true;
+        console.log('炫光效果已启用 - 使用材质自发光实现');
+    }
+    
+    /**
+     * 清理炫光效果
+     */
+    cleanupBloomEffect() {
+        this.bloomEnabled = false;
+        console.log('炫光效果已禁用');
+    }
+    
+    /**
+     * 渲染炫光效果
+     */
+    renderBloom() {
+        // 炫光效果通过材质自发光实现，无需特殊渲染
+        return;
+    }
+    
+    /**
+     * 设置照片窗口背景颜色与星星碎片颜色一致
+     */
+    setPhotoModalBackground(fragment) {
+        if (!this.isActive) return;
+        
+        const modal = document.getElementById('photo-modal');
+        if (!modal) return;
+        
+        // 保存原始背景颜色（只在第一次保存）
+        if (!this.originalModalBackground) {
+            this.originalModalBackground = modal.style.background;
+        }
+        
+        // 获取碎片的颜色
+        let fragmentColor = '#ffffff'; // 默认白色
+        if (fragment && fragment.material && fragment.material.color) {
+            // 将Three.js颜色转换为CSS颜色
+            fragmentColor = '#' + fragment.material.color.getHexString();
+        }
+        
+        // 设置照片窗口背景颜色
+        modal.style.background = `linear-gradient(135deg, ${fragmentColor}20, ${fragmentColor}40)`;
+        modal.style.border = `2px solid ${fragmentColor}`;
+        
+        console.log(`照片窗口背景颜色已设置为: ${fragmentColor}`);
+    }
+    
+    /**
+     * 恢复照片窗口原始背景颜色
+     */
+    restorePhotoModalBackground() {
+        const modal = document.getElementById('photo-modal');
+        if (!modal || !this.originalModalBackground) return;
+        
+        modal.style.background = this.originalModalBackground;
+        modal.style.border = '2px solid #fff';
+        
+        console.log('照片窗口背景颜色已恢复');
     }
     
     /**
