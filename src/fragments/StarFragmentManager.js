@@ -37,6 +37,89 @@ export class StarFragmentManager {
                 this.updateFragmentSelfRotation(fragment, deltaTime);
             }
         });
+
+        // 轻量级碰撞分离（仅沿切向调整角度），开关由场景控制
+        if (this.scene.enableFragmentCollisions) {
+            this.resolveFragmentCollisions(deltaTime);
+        }
+    }
+
+    // 基于同环、近半径分桶，按角度检查相邻碎片，重叠则微调 originalAngle
+    resolveFragmentCollisions(deltaTime) {
+        const fragments = this.scene.starFragments;
+        if (!fragments || fragments.length === 0) return;
+
+        const bins = new Map(); // key: `${ringIndex}:${radiusBin}` -> array
+        const radiusBinSize = 0.3; // 半径分桶精度，避免跨轨道检查
+
+        for (let i = 0; i < fragments.length; i++) {
+            const f = fragments[i];
+            if (!f || f.userData.isClicked || f.parent === this.scene.scene) continue;
+            const ringIndex = f.userData.ringIndex;
+            const radius = f.userData.radius;
+            const radiusBin = Math.round(radius / radiusBinSize);
+            const key = `${ringIndex}:${radiusBin}`;
+            if (!bins.has(key)) bins.set(key, []);
+            bins.get(key).push(f);
+        }
+
+        const maxIterations = 2; // 多次迭代可减少抖动
+        const separationStrength = 0.6; // 分离强度（越大分离越快）
+        const clampAngle = (a) => {
+            // 归一化到 [-PI, PI]
+            a = (a + Math.PI) % (Math.PI * 2);
+            if (a < 0) a += Math.PI * 2;
+            return a - Math.PI;
+        };
+
+        bins.forEach((arr) => {
+            if (arr.length <= 1) return;
+            // 按角度排序，仅检查相邻对 + 首尾对
+            arr.sort((a, b) => a.userData.originalAngle - b.userData.originalAngle);
+
+            for (let iter = 0; iter < maxIterations; iter++) {
+                for (let idx = 0; idx < arr.length; idx++) {
+                    const a = arr[idx];
+                    const b = arr[(idx + 1) % arr.length];
+
+                    const ax = Math.cos(a.userData.originalAngle) * a.userData.radius;
+                    const az = Math.sin(a.userData.originalAngle) * a.userData.radius;
+                    const bx = Math.cos(b.userData.originalAngle) * b.userData.radius;
+                    const bz = Math.sin(b.userData.originalAngle) * b.userData.radius;
+
+                    const dx = bx - ax;
+                    const dz = bz - az;
+                    const distSq = dx * dx + dz * dz;
+
+                    // 估计包围半径：基础尺寸 * 当前缩放的一半（几何体总体积较小）
+                    const aScale = (a.userData.sizeVariation && a.userData.sizeVariation.currentScale) || 1.0;
+                    const bScale = (b.userData.sizeVariation && b.userData.sizeVariation.currentScale) || 1.0;
+                    const aR = (a.userData.originalSize || 0.07) * aScale * 0.9;
+                    const bR = (b.userData.originalSize || 0.07) * bScale * 0.9;
+                    const minDist = aR + bR;
+                    const minDistSq = minDist * minDist;
+
+                    if (distSq > 0 && distSq < minDistSq) {
+                        const dist = Math.sqrt(distSq);
+                        // 沿切向分离：通过角度微调实现
+                        // 角度调整近似：所需弧长差 / 半径
+                        const overlap = (minDist - dist);
+                        const avgRadius = Math.max(0.0001, (a.userData.radius + b.userData.radius) * 0.5);
+                        const deltaAngle = (overlap / avgRadius) * separationStrength;
+
+                        // 相反方向微调，减小相互穿插
+                        a.userData.originalAngle = clampAngle(a.userData.originalAngle - deltaAngle * 0.5);
+                        b.userData.originalAngle = clampAngle(b.userData.originalAngle + deltaAngle * 0.5);
+
+                        // 立即更新位置，减少下一对计算误差
+                        a.position.x = Math.cos(a.userData.originalAngle) * a.userData.radius;
+                        a.position.z = Math.sin(a.userData.originalAngle) * a.userData.radius;
+                        b.position.x = Math.cos(b.userData.originalAngle) * b.userData.radius;
+                        b.position.z = Math.sin(b.userData.originalAngle) * b.userData.radius;
+                    }
+                }
+            }
+        });
     }
 
     createStarFragments() {
@@ -197,7 +280,9 @@ export class StarFragmentManager {
             isDimming: false,
             dimStartTime: 0,
             dimDuration: 0,
-            nextDimTime: Math.random() * 50 + 30,
+            // 闪烁频率倍数（来自场景，可选）。>1 表示更频繁
+            // 初始下次闪烁时间依据频率倍数缩短，从而提高频率
+            nextDimTime: (Math.random() * 50 + 30) / (this.scene.fragmentFlickerFrequencyMultiplier || 1.0),
             originalSize: size,
             baseSize: baseSize,
             originalScale: 1.0, // 保存原始缩放比例
@@ -244,7 +329,8 @@ export class StarFragmentManager {
             } else {
                 userData.isDimming = false;
                 fragment.material.opacity = 0.9;
-                userData.nextDimTime = elapsedTime + Math.random() * 50 + 30;
+                const freqMul = (this.scene.fragmentFlickerFrequencyMultiplier || 1.0);
+                userData.nextDimTime = elapsedTime + (Math.random() * 50 + 30) / freqMul;
             }
         } else {
             fragment.material.opacity = 0.9;
