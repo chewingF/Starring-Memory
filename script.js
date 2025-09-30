@@ -49,6 +49,9 @@ export class SaturnRingScene {
         
         // 星环主体显示状态
         this.isRingVisible = false; //默认关闭
+
+        // RenderBundle 风格碎片生成开关（默认开启）
+        this.useRenderBundleStyle = true;
         
         
         // 四个环的透明度控制
@@ -437,12 +440,8 @@ export class SaturnRingScene {
                     fragment.geometry.dispose(); // 释放旧几何体
                     fragment.geometry = new THREE.PlaneGeometry(newScale, newScale);
                 } else {
-                    // 对于菱形几何体，需要重新创建
-                    fragment.geometry.dispose(); // 释放旧几何体
-                    const cornerScales = (fragment.userData && fragment.userData.cornerScales)
-                        ? fragment.userData.cornerScales
-                        : undefined; // 若无记录，走默认逻辑
-                    fragment.geometry = this.createDiamondGeometry(newScale, cornerScales);
+                    // 对于随机几何体，直接缩放
+                    fragment.scale.setScalar(newScale / fragment.userData.originalSize);
                 }
                 
                 // 更新用户数据中的原始大小
@@ -1536,6 +1535,24 @@ export class SaturnRingScene {
             ringVisibilityCheckbox.addEventListener('change', (e) => {
                 this.isRingVisible = e.target.checked;
                 this.updateRingVisibility();
+            });
+        }
+
+        // RenderBundle 风格切换（同时模拟开启 WebGL 与 dynamic）
+        const rbStyleToggle = document.getElementById('rbStyleToggle');
+        if (rbStyleToggle) {
+            rbStyleToggle.addEventListener('change', (e) => {
+                this.useRenderBundleStyle = !!e.target.checked;
+                // 重新创建碎片
+                if (this.starFragmentManager && typeof this.starFragmentManager.recreateFragments === 'function') {
+                    this.starFragmentManager.recreateFragments();
+                } else if (typeof this.createStarFragments === 'function') {
+                    // 兼容旧路径
+                    // 移除现有碎片
+                    this.starFragments.forEach(f => f.parent && f.parent.remove(f));
+                    this.starFragments = [];
+                    this.createStarFragments();
+                }
             });
         }
 

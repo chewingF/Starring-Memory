@@ -40,6 +40,20 @@ export class StarFragmentManager {
     }
 
     createStarFragments() {
+        // 清理旧碎片
+        this.disposeFragments();
+
+        // RenderBundle 风格：将碎片放入一个组内，模拟示例中的 BundleGroup
+        const useRB = !!this.scene.useRenderBundleStyle;
+        if (useRB) {
+            this.scene.starFragmentGroup = new THREE.Group();
+            // 与示例保持一致：动态时 static=false
+            this.scene.starFragmentGroup.static = false;
+            this.scene.saturnSystem.add(this.scene.starFragmentGroup);
+        } else {
+            this.scene.starFragmentGroup = null;
+        }
+
         const rings = [
             { name: 'A', innerRadius: 4.0, outerRadius: 4.8, color: 0xffd700, count: Math.floor(this.scene.starFragmentCount * this.scene.ringFragmentRatios.inner) },
             { name: 'B', innerRadius: 4.8, outerRadius: 5.2, color: 0xffed4e, count: Math.floor(this.scene.starFragmentCount * this.scene.ringFragmentRatios.middle) },
@@ -50,11 +64,46 @@ export class StarFragmentManager {
             for (let i = 0; i < ring.count; i++) {
                 const fragment = this.createStarFragment(ring, ringIndex);
                 this.scene.starFragments.push(fragment);
-                this.scene.saturnSystem.add(fragment);
+                if (useRB && this.scene.starFragmentGroup) {
+                    this.scene.starFragmentGroup.add(fragment);
+                } else {
+                    this.scene.saturnSystem.add(fragment);
+                }
             }
         });
         this.scene.starFragmentsReady = true;
         this.scene.checkReady();
+    }
+
+    recreateFragments() {
+        this.createStarFragments();
+        
+        // 如果 Toon 模式是激活的，重新应用 Toon 材质
+        if (this.scene.toonMode && this.scene.toonMode.isActive) {
+            this.scene.toonMode.applyToonMaterialsToFragments();
+        }
+    }
+
+    disposeFragments() {
+        if (Array.isArray(this.scene.starFragments) && this.scene.starFragments.length > 0) {
+            this.scene.starFragments.forEach((fragment) => {
+                if (fragment.parent) fragment.parent.remove(fragment);
+                if (fragment.geometry) fragment.geometry.dispose();
+                if (fragment.material) {
+                    if (Array.isArray(fragment.material)) {
+                        fragment.material.forEach(m => m.dispose && m.dispose());
+                    } else {
+                        fragment.material.dispose && fragment.material.dispose();
+                    }
+                }
+            });
+        }
+        this.scene.starFragments = [];
+        if (this.scene.starFragmentGroup && this.scene.starFragmentGroup.parent) {
+            this.scene.starFragmentGroup.parent.remove(this.scene.starFragmentGroup);
+        }
+        this.scene.starFragmentGroup = null;
+        this.scene.starFragmentsReady = false;
     }
 
     createStarFragment(ring, ringIndex) {
@@ -62,13 +111,27 @@ export class StarFragmentManager {
         const maxSize = 0.08;
         const baseSize = Math.random() * (maxSize - minSize) + minSize;
         const size = baseSize * this.scene.starFragmentSizeScale;
-        const cornerScales = this.scene.randomizeDiamondCorners ? {
-            left: Math.random() * 0.3 + 0.6,
-            right: Math.random() * 0.3 + 0.6,
-            front: Math.random() * 0.3 + 0.6,
-            back: Math.random() * 0.3 + 0.6
-        } : { left: 0.6, right: 0.6, front: 0.6, back: 0.6 };
-        const geometry = this.createDiamondGeometry(size, cornerScales);
+        
+        // 使用随机几何体（参考 renderbundle 示例）
+        const geometries = [
+            new THREE.ConeGeometry(1.0, 2.0, 3, 1),
+            new THREE.BoxGeometry(2.0, 2.0, 2.0),
+            new THREE.PlaneGeometry(2.0, 2, 1, 1),
+            new THREE.CapsuleGeometry(),
+            new THREE.CircleGeometry(1.0, 3),
+            new THREE.CylinderGeometry(1.0, 1.0, 2.0, 3, 1),
+            new THREE.DodecahedronGeometry(1.0, 0),
+            new THREE.IcosahedronGeometry(1.0, 0),
+            new THREE.OctahedronGeometry(1.0, 0),
+            new THREE.SphereGeometry(1.0, 3, 2),
+            new THREE.TetrahedronGeometry(1.0, 0),
+            new THREE.TorusGeometry(1.0, 0.5, 3, 3),
+            new THREE.TorusKnotGeometry(1.0, 0.5, 20, 3, 1, 1)
+        ];
+        
+        const geometry = geometries[Math.floor(Math.random() * geometries.length)];
+        geometry.scale(size, size, size);
+        
         const material = new THREE.MeshPhongMaterial({
             color: ring.color,
             transparent: true,
@@ -157,9 +220,7 @@ export class StarFragmentManager {
             }
         };
         if (!fragment.userData) fragment.userData = {};
-        fragment.userData.cornerScales = geometry.userData && geometry.userData.cornerScales
-            ? { ...geometry.userData.cornerScales }
-            : cornerScales;
+        // 对于随机几何体，不需要保存 cornerScales
         return fragment;
     }
 

@@ -530,17 +530,15 @@ export class ToonMode {
             // 保存原始材质
             this.originalFragmentMaterials.set(fragment.uuid, fragment.material);
             
-            // 随机选择Toon颜色
+            // 使用 Toon 模式独特的随机颜色
             const randomColor = this.toonColors[Math.floor(Math.random() * this.toonColors.length)];
             
-            // 创建Toon材质，增强炫光效果
+            // 创建Toon材质，使用独特的 Toon 颜色
             const toonMaterial = new THREE.MeshToonMaterial({
                 color: randomColor,
                 transparent: true,
                 opacity: 0.9,
-                shininess: 200, // 增强光泽度
-                specular: 0x888888, // 增强高光反射
-                emissive: randomColor, // 使用碎片颜色作为自发光
+                emissive: randomColor, // 使用 Toon 颜色作为自发光
                 emissiveIntensity: 0.8 // 大幅增强自发光强度实现炫光效果
             });
             
