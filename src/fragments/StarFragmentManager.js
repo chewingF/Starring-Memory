@@ -139,7 +139,7 @@ export class StarFragmentManager {
             shininess: 2,
             specular: 0x888888,
             emissive: ring.color,
-            emissiveIntensity: 0.1
+            emissiveIntensity: 0.3 // 增强自发光强度，使发光效果更明显
         });
         const fragment = new THREE.Mesh(geometry, material);
         let angle, radius, height;

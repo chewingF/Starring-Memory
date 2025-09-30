@@ -539,7 +539,7 @@ export class ToonMode {
                 transparent: true,
                 opacity: 0.9,
                 emissive: randomColor, // 使用 Toon 颜色作为自发光
-                emissiveIntensity: 0.8 // 大幅增强自发光强度实现炫光效果
+                emissiveIntensity: 1.2 // 进一步增强自发光强度，使发光效果更明显
             });
             
             fragment.material = toonMaterial;
