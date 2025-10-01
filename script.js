@@ -963,6 +963,9 @@ export class SaturnRingScene {
             
             // 更新背景位置
             this.updateBackgroundParallax();
+            
+            // 更新相机旋转
+            this.updateCameraGyroscopeRotation();
         });
         
         console.log('✅ 陀螺仪事件监听器已添加');
@@ -998,6 +1001,36 @@ export class SaturnRingScene {
         texture.offset.y = Math.max(0, Math.min(1 - texture.repeat.y, texture.offset.y));
         
         texture.needsUpdate = true;
+    }
+
+    // 根据陀螺仪数据更新相机旋转（最多3度）
+    updateCameraGyroscopeRotation() {
+        if (!this.camera) return;
+        
+        // 最大旋转角度限制（3度）
+        const maxRotationDegrees = 3;
+        const maxRotationRadians = (maxRotationDegrees * Math.PI) / 180;
+        
+        // 获取当前相机旋转
+        const currentRotation = this.camera.rotation.clone();
+        
+        // 计算陀螺仪旋转偏移量
+        // beta: 前后倾斜，影响相机的pitch（上下看）
+        // gamma: 左右倾斜，影响相机的yaw（左右看）
+        const betaRadians = (this.gyroscopeData.beta * Math.PI) / 180;
+        const gammaRadians = (this.gyroscopeData.gamma * Math.PI) / 180;
+        
+        // 限制旋转角度在3度以内
+        const limitedBeta = Math.max(-maxRotationRadians, Math.min(maxRotationRadians, betaRadians * 0.1));
+        const limitedGamma = Math.max(-maxRotationRadians, Math.min(maxRotationRadians, gammaRadians * 0.1));
+        
+        // 应用旋转到相机
+        // 注意：Three.js中相机的旋转顺序是YXZ
+        this.camera.rotation.x = limitedBeta;  // pitch（上下）
+        this.camera.rotation.y = limitedGamma; // yaw（左右）
+        
+        // 保持相机的roll（绕Z轴）不变，避免画面倾斜
+        // this.camera.rotation.z 保持原值
     }
 
     // 创建流星飞行动画
@@ -2201,6 +2234,11 @@ export class SaturnRingScene {
         
         // 在动画循环中更新光源位置
         this.updateLightPositions();
+        
+        // 更新陀螺仪相机旋转
+        if (this.gyroscopePermissionGranted) {
+            this.updateCameraGyroscopeRotation();
+        }
         
         // 更新流星动画
         this.updateMeteorAnimations();
