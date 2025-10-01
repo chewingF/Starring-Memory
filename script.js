@@ -107,6 +107,16 @@ export class SaturnRingScene {
         // 流星雨管理器
         this.meteorShowerManager = null;
         
+        // 点击音效（星星碎片被点击时播放）
+        this.clickSound = null;
+        try {
+            this.clickSound = new Audio('audio/pop-atmos.mp3');
+            this.clickSound.preload = 'auto';
+            this.clickSound.volume = 0.8;
+        } catch (e) {
+            // 在不支持 Audio 的环境中忽略
+        }
+
         this.init();
         // 延迟启动动画循环，让子类有机会覆盖animate方法
         setTimeout(() => {
@@ -1555,6 +1565,16 @@ export class SaturnRingScene {
             
             if (intersects.length > 0) {
                 const clickedFragment = intersects[0].object;
+                // 播放点击音效（允许重叠播放）
+                if (this.clickSound) {
+                    try {
+                        const node = this.clickSound.cloneNode();
+                        node.volume = this.clickSound.volume;
+                        node.play().catch(() => {});
+                    } catch (e) {
+                        // 忽略播放错误
+                    }
+                }
                 this.showPhoto(clickedFragment);
             }
         };

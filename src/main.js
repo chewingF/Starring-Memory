@@ -6,6 +6,18 @@ window.addEventListener('load', () => {
     const scene = new SaturnRingScene();
     
     // 恋爱天数进度逻辑
+    // 背景音乐：在计数到365时开始循环播放
+    const bgAudio = new Audio('audio/starMusic.mp3');
+    bgAudio.loop = true;
+    bgAudio.preload = 'auto';
+    bgAudio.volume = 0.5;
+    const tryPlayBgAudio = () => {
+        if (!bgAudio) return;
+        if (!bgAudio.paused) return;
+        bgAudio.play().catch(() => {
+            // 部分浏览器需要用户交互，点击后会再次尝试
+        });
+    };
     const dayCountElement = document.getElementById('day-count');
     const loveCounterElement = document.getElementById('love-counter');
     const anniversaryMessageElement = document.getElementById('anniversary-message');
@@ -26,6 +38,10 @@ window.addEventListener('load', () => {
         const updateCounter = () => {
             if (currentDay <= maxDays) {
                 dayCountElement.textContent = currentDay;
+                // 当计数到达365，尝试启动背景音乐（循环）
+                if (currentDay === maxDays) {
+                    tryPlayBgAudio();
+                }
                 currentDay++;
                 setTimeout(updateCounter, updateInterval);
             } else {
@@ -57,6 +73,10 @@ window.addEventListener('load', () => {
     
     // 添加点击事件监听
     const handleUserClick = () => {
+        // 若因为自动播放限制未能播放，用户点击时再次尝试播放
+        if (bgAudio && bgAudio.paused) {
+            tryPlayBgAudio();
+        }
         if (isReadyToContinue && !hasUserClicked) {
             hasUserClicked = true;
             fadeOutToScene();
