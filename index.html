@@ -57,6 +57,15 @@
             50% { opacity: 1; }
         }
 
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.8); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .anniversary-fade-in {
+            animation: fadeIn 0.8s ease-out;
+        }
+
         #canvas-container {
             position: relative;
             width: 100vw;
@@ -104,17 +113,6 @@
             font-size: 18px;
         }
 
-        .instructions {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            color: rgba(255, 255, 255, 0.7);
-            text-align: center;
-            font-size: 14px;
-            z-index: 10;
-            animation: fadeInOut 3s infinite;
-        }
 
         .control-panel {
             position: fixed;
@@ -223,10 +221,6 @@
                 font-size: 16px;
             }
             
-            .instructions {
-                font-size: 12px;
-                bottom: 10px;
-            }
             
             .control-panel {
                 top: 10px;
@@ -246,15 +240,15 @@
 <body>
     <div id="loading-screen">
         <div class="loading-text">
-            <div>正在加载土星星环...</div>
-            <div style="font-size: 16px; margin-top: 10px; opacity: 0.7;">点击星星碎片查看回忆</div>
+            <div id="love-counter">恋爱第 <span id="day-count">1</span> 天</div>
+            <div id="anniversary-message" style="display: none; font-size: 20px; margin-top: 10px; color: #ffd700;"> 一周年已达成，解锁新场景</div>
         </div>
     </div>
 
     <div id="canvas-container"></div>
 
     <div id="photo-modal">
-        <div class="modal-title" id="modal-title">回忆照片</div>
+        <div class="modal-title" id="modal-title"></div>
         <img id="modal-image" src="" alt="回忆照片">
     </div>
 
@@ -307,22 +301,22 @@
         <div class="control-group">
             <label>内环碎片比例</label>
             <input type="range" id="innerRingRatio" min="0" max="1" step="0.1" value="0.05">
-            <div class="value" id="innerRingRatioValue">5%</div>
+            <div class="value" id="innerRingRatioValue"></div>
         </div>
         <div class="control-group">
             <label>中内环碎片比例</label>
             <input type="range" id="middleRingRatio" min="0" max="1" step="0.1" value="0.3">
-            <div class="value" id="middleRingRatioValue">30%</div>
+            <div class="value" id="middleRingRatioValue"></div>
         </div>
         <div class="control-group">
             <label>中外环碎片比例</label>
             <input type="range" id="outerRingRatio" min="0" max="1" step="0.1" value="0.55">
-            <div class="value" id="outerRingRatioValue">55%</div>
+            <div class="value" id="outerRingRatioValue"></div>
         </div>
         <div class="control-group">
             <label>外环碎片比例</label>
             <input type="range" id="outerMostRingRatio" min="0" max="1" step="0.1" value="0.1">
-            <div class="value" id="outerMostRingRatioValue">10%</div>
+            <div class="value" id="outerMostRingRatioValue"></div>
         </div>
         <div class="control-group">
             <label>
@@ -375,24 +369,24 @@
         <div class="control-group" id="pixelControls3" style="display: none;">
             <label>深度边缘强度</label>
             <input type="range" id="depthEdgeStrength" min="0" max="1" step="0.05" value="1.0">
-            <div class="value" id="depthEdgeStrengthValue">1.0</div>
+            <div class="value" id="depthEdgeStrengthValue"></div>
         </div>
         
         <!-- 拖尾效果控制 -->
         <div class="control-group" id="afterimageControls" style="display: none;">
             <label>拖尾停留时间</label>
             <input type="range" id="afterimageDamp" min="0.7" max="0.99" step="0.01" value="0.98">
-            <div class="value" id="afterimageDampValue">超长</div>
+            <div class="value" id="afterimageDampValue"></div>
         </div>
         <div class="control-group" id="afterimageControls2" style="display: none;">
             <label>拖尾强度</label>
             <input type="range" id="afterimageStrength" min="0.1" max="1.0" step="0.05" value="1.0">
-            <div class="value" id="afterimageStrengthValue">1.0</div>
+            <div class="value" id="afterimageStrengthValue"></div>
         </div>
         <div class="control-group" id="afterimageControls3" style="display: none;">
-            <label>速度倍数</label>
+            <label></label>
             <input type="range" id="trailSpeedMultiplier" min="1" max="20" step="1" value="10">
-            <div class="value" id="trailSpeedMultiplierValue">10x</div>
+            <div class="value" id="trailSpeedMultiplierValue"></div>
         </div>
         <div class="control-group" id="afterimageControls4" style="display: none;">
             <button id="trailTestToggle" style="width: 100%; padding: 8px; background: rgba(255,107,107,0.2); border: 1px solid #ff6b6b; border-radius: 4px; color: #ff6b6b; cursor: pointer;">
@@ -409,27 +403,27 @@
         <div class="control-group" id="toonControls2" style="display: none;">
             <label>Toon球体数量</label>
             <input type="range" id="toonSphereCount" min="1" max="10" step="1" value="3">
-            <div class="value" id="toonSphereCountValue">3</div>
+            <div class="value" id="toonSphereCountValue"></div>
         </div>
         <div class="control-group" id="toonControls3" style="display: none;">
             <label>颜色饱和度</label>
             <input type="range" id="toonSaturation" min="0.1" max="1.0" step="0.1" value="0.7">
-            <div class="value" id="toonSaturationValue">0.7</div>
+            <div class="value" id="toonSaturationValue"></div>
         </div>
         <div class="control-group" id="toonControls4" style="display: none;">
             <label>定向光倍率</label>
             <input type="range" id="directionalLightMultiplier" min="1" max="200" step="1" value="3">
-            <div class="value" id="directionalLightMultiplierValue">3x</div>
+            <div class="value" id="directionalLightMultiplierValue"></div>
         </div>
         <div class="control-group" id="toonControls5" style="display: none;">
             <label>半球光倍率</label>
             <input type="range" id="hemisphereLightMultiplier" min="1" max="200" step="1" value="50">
-            <div class="value" id="hemisphereLightMultiplierValue">50x</div>
+            <div class="value" id="hemisphereLightMultiplierValue"></div>
         </div>
         <div class="control-group" id="toonControls6" style="display: none;">
             <label>环境光倍率</label>
             <input type="range" id="ambientLightMultiplier" min="1" max="200" step="1" value="80">
-            <div class="value" id="ambientLightMultiplierValue">80x</div>
+            <div class="value" id="ambientLightMultiplierValue"></div>
         </div>
         
         <!-- 添加底部边距，确保滚动区域足够 -->
