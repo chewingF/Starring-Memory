@@ -1158,20 +1158,8 @@ export class SaturnRingScene {
         try {
             console.log('开始加载照片列表...');
             
-            // 首先尝试使用API获取照片列表
-            try {
-                const response = await fetch('/api/photos');
-                if (response.ok) {
-                    const apiResponse = await response.json();
-                    if (apiResponse.success) {
-                        this.photos = apiResponse.photos.map(file => `photos/${file}`);
-                        console.log(`✅ 通过API成功加载 ${this.photos.length} 张照片`);
-                        return;
-                    }
-                }
-            } catch (apiError) {
-                console.log('API请求失败，使用备用方案:', apiError.message);
-            }
+            // 直接使用备用方案，不尝试API
+            console.log('🔄 使用照片文件列表方案');
             
             // 备用方案：直接扫描photos目录下的所有图片文件
             console.log('🔄 使用备用方案：扫描photos目录');
