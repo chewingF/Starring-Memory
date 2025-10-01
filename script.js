@@ -92,6 +92,8 @@ export class SaturnRingScene {
         };
         this.isGyroscopeSupported = false;
         this.gyroscopePermissionGranted = false;
+        this.hasGyroEvent = false; // 是否收到过陀螺仪事件
+        this.cameraBaseQuaternion = new THREE.Quaternion(); // 作为陀螺仪偏移的基准视角
         
         // 流星动画相关属性
         this.meteorAnimations = new Map(); // 存储正在进行的流星动画
@@ -331,6 +333,11 @@ export class SaturnRingScene {
         
         // 更新光源位置，让光源相对于相机位置保持固定
         this.updateLightPositions();
+
+        // 记录当前相机朝向为基准视角（供陀螺仪在其上叠加微小偏移）
+        if (this.camera && this.camera.quaternion) {
+            this.cameraBaseQuaternion.copy(this.camera.quaternion);
+        }
     }
     
     // 计算土星应该出现的目标位置，使得它在屏幕上显示在指定位置
@@ -1003,6 +1010,7 @@ export class SaturnRingScene {
             this.gyroscopeData.alpha = event.alpha || 0;  // 绕Z轴旋转
             this.gyroscopeData.beta = event.beta || 0;    // 绕X轴旋转（前后倾斜）
             this.gyroscopeData.gamma = event.gamma || 0;  // 绕Y轴旋转（左右倾斜）
+            this.hasGyroEvent = true;
             
             // 调试信息：每100帧输出一次陀螺仪数据
             if (this.debugFrameCount % 100 === 0) {
@@ -1063,9 +1071,6 @@ export class SaturnRingScene {
         const maxRotationDegrees = 3;
         const maxRotationRadians = (maxRotationDegrees * Math.PI) / 180;
         
-        // 获取当前相机旋转
-        const currentRotation = this.camera.rotation.clone();
-        
         // 计算陀螺仪旋转偏移量
         // beta: 前后倾斜，影响相机的pitch（上下看）
         // gamma: 左右倾斜，影响相机的yaw（左右看）
@@ -1076,13 +1081,10 @@ export class SaturnRingScene {
         const limitedBeta = Math.max(-maxRotationRadians, Math.min(maxRotationRadians, betaRadians * 0.1));
         const limitedGamma = Math.max(-maxRotationRadians, Math.min(maxRotationRadians, gammaRadians * 0.1));
         
-        // 应用旋转到相机
-        // 注意：Three.js中相机的旋转顺序是YXZ
-        this.camera.rotation.x = limitedBeta;  // pitch（上下）
-        this.camera.rotation.y = limitedGamma; // yaw（左右）
-        
-        // 保持相机的roll（绕Z轴）不变，避免画面倾斜
-        // this.camera.rotation.z 保持原值
+        // 在基准视角上叠加小角度偏移
+        const deltaEuler = new THREE.Euler(limitedBeta, limitedGamma, 0, 'YXZ');
+        const deltaQuat = new THREE.Quaternion().setFromEuler(deltaEuler);
+        this.camera.quaternion.copy(this.cameraBaseQuaternion).multiply(deltaQuat);
     }
 
     // 创建流星飞行动画
@@ -2297,8 +2299,8 @@ export class SaturnRingScene {
         // 在动画循环中更新光源位置
         this.updateLightPositions();
         
-        // 更新陀螺仪相机旋转
-        if (this.isGyroscopeSupported) {
+        // 更新陀螺仪相机旋转（仅在收到陀螺仪事件后才叠加变化）
+        if (this.isGyroscopeSupported && this.hasGyroEvent) {
             this.updateCameraGyroscopeRotation();
         }
         
