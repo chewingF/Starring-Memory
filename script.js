@@ -927,15 +927,37 @@ export class SaturnRingScene {
             
             // 请求权限（iOS 13+需要）
             if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-                console.log('📱 检测到iOS设备，需要请求陀螺仪权限');
-                this.requestGyroscopePermission();
+                console.log('📱 检测到iOS设备，需要用户交互来请求陀螺仪权限');
+                // 不立即请求权限，等待用户交互
+                this.setupGyroscopePermissionRequest();
             } else {
                 // 非iOS设备直接添加事件监听器
                 this.addGyroscopeListener();
+                this.updateGyroStatus('陀螺仪已启用，倾斜设备查看效果');
             }
         } else {
             console.log('❌ 设备不支持陀螺仪');
         }
+    }
+
+    // 设置陀螺仪权限请求（等待用户交互）
+    setupGyroscopePermissionRequest() {
+        // 添加一次性点击/触摸事件监听器来请求权限
+        const requestPermissionOnInteraction = async () => {
+            if (!this.gyroscopePermissionGranted) {
+                console.log('📱 用户交互检测到，请求陀螺仪权限...');
+                await this.requestGyroscopePermission();
+                // 移除事件监听器，避免重复请求
+                document.removeEventListener('click', requestPermissionOnInteraction);
+                document.removeEventListener('touchstart', requestPermissionOnInteraction);
+            }
+        };
+        
+        // 添加事件监听器
+        document.addEventListener('click', requestPermissionOnInteraction, { once: true });
+        document.addEventListener('touchstart', requestPermissionOnInteraction, { once: true });
+        
+        console.log('📱 已设置陀螺仪权限请求，等待用户交互...');
     }
 
     // 请求陀螺仪权限（iOS 13+）
@@ -946,11 +968,22 @@ export class SaturnRingScene {
                 this.gyroscopePermissionGranted = true;
                 console.log('✅ 陀螺仪权限已授予');
                 this.addGyroscopeListener();
+                this.updateGyroStatus('陀螺仪已启用，倾斜设备查看效果');
             } else {
                 console.log('❌ 陀螺仪权限被拒绝');
+                this.updateGyroStatus('陀螺仪权限被拒绝');
             }
         } catch (error) {
             console.error('❌ 请求陀螺仪权限时出错:', error);
+            this.updateGyroStatus('陀螺仪权限请求失败');
+        }
+    }
+
+    // 更新陀螺仪状态显示
+    updateGyroStatus(message) {
+        const statusElement = document.getElementById('gyro-status');
+        if (statusElement) {
+            statusElement.textContent = message;
         }
     }
 
@@ -960,6 +993,15 @@ export class SaturnRingScene {
             this.gyroscopeData.alpha = event.alpha || 0;  // 绕Z轴旋转
             this.gyroscopeData.beta = event.beta || 0;    // 绕X轴旋转（前后倾斜）
             this.gyroscopeData.gamma = event.gamma || 0;  // 绕Y轴旋转（左右倾斜）
+            
+            // 调试信息：每100帧输出一次陀螺仪数据
+            if (this.debugFrameCount % 100 === 0) {
+                console.log('📱 陀螺仪数据:', {
+                    alpha: this.gyroscopeData.alpha.toFixed(2),
+                    beta: this.gyroscopeData.beta.toFixed(2),
+                    gamma: this.gyroscopeData.gamma.toFixed(2)
+                });
+            }
             
             // 更新背景位置
             this.updateBackgroundParallax();
@@ -2236,7 +2278,7 @@ export class SaturnRingScene {
         this.updateLightPositions();
         
         // 更新陀螺仪相机旋转
-        if (this.gyroscopePermissionGranted) {
+        if (this.isGyroscopeSupported) {
             this.updateCameraGyroscopeRotation();
         }
         
