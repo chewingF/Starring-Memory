@@ -209,7 +209,11 @@ export class StarFragmentManager {
             new THREE.SphereGeometry(1.0, 3, 2),
             new THREE.TetrahedronGeometry(1.0, 0),
             new THREE.TorusGeometry(1.0, 0.5, 3, 3),
-            new THREE.TorusKnotGeometry(1.0, 0.5, 20, 3, 1, 1)
+            new THREE.TorusKnotGeometry(1.0, 0.5, 20, 3, 1, 1),
+            // 新增的自定义几何体
+            this.createHeartGeometry(1.0),
+            this.createStarGeometry(1.0),
+            this.createCrossStarGeometry(1.0)
         ];
         
         const geometry = geometries[Math.floor(Math.random() * geometries.length)];
@@ -413,6 +417,134 @@ export class StarFragmentManager {
         
         // 将角缩放保存在几何体的 userData 中，便于后续尺寸更新复用
         geometry.userData.cornerScales = scales;
+        return geometry;
+    }
+
+    createHeartGeometry(size) {
+        const geometry = new THREE.BufferGeometry();
+        
+        // 爱心形状的顶点定义
+        const vertices = new Float32Array([
+            // 左半部分
+            -size * 0.5, size * 0.3, 0,
+            -size * 0.8, size * 0.1, 0,
+            -size * 0.6, -size * 0.2, 0,
+            -size * 0.2, -size * 0.4, 0,
+            0, -size * 0.6, 0,
+            // 右半部分
+            size * 0.2, -size * 0.4, 0,
+            size * 0.6, -size * 0.2, 0,
+            size * 0.8, size * 0.1, 0,
+            size * 0.5, size * 0.3, 0,
+            // 中心点
+            0, size * 0.5, 0
+        ]);
+        
+        // 定义面（三角形）
+        const indices = [
+            // 左半部分
+            0, 1, 9,
+            1, 2, 9,
+            2, 3, 9,
+            3, 4, 9,
+            // 右半部分
+            9, 5, 8,
+            9, 5, 6,
+            9, 6, 7,
+            9, 7, 8,
+            // 底部连接
+            4, 5, 3,
+            3, 5, 2,
+            2, 5, 6
+        ];
+        
+        geometry.setIndex(indices);
+        geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+        geometry.computeVertexNormals();
+        
+        return geometry;
+    }
+
+    createStarGeometry(size) {
+        const geometry = new THREE.BufferGeometry();
+        
+        // 五角星形状的顶点定义
+        const vertices = new Float32Array([
+            // 外圈顶点（5个尖角）
+            size * 0.0, size * 1.0, 0,    // 上
+            size * 0.95, size * 0.31, 0,  // 右上
+            size * 0.59, -size * 0.81, 0, // 右下
+            -size * 0.59, -size * 0.81, 0, // 左下
+            -size * 0.95, size * 0.31, 0, // 左上
+            // 内圈顶点（5个凹角）
+            size * 0.0, size * 0.38, 0,   // 上内
+            size * 0.36, size * 0.12, 0,  // 右上内
+            size * 0.22, -size * 0.31, 0, // 右下内
+            -size * 0.22, -size * 0.31, 0, // 左下内
+            -size * 0.36, size * 0.12, 0  // 左上内
+        ]);
+        
+        // 定义面（三角形）
+        const indices = [
+            // 上部分
+            0, 1, 5,
+            1, 2, 6,
+            2, 3, 7,
+            3, 4, 8,
+            4, 0, 9,
+            // 中心部分
+            5, 6, 1,
+            6, 7, 2,
+            7, 8, 3,
+            8, 9, 4,
+            9, 5, 0
+        ];
+        
+        geometry.setIndex(indices);
+        geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+        geometry.computeVertexNormals();
+        
+        return geometry;
+    }
+
+    createCrossStarGeometry(size) {
+        const geometry = new THREE.BufferGeometry();
+        
+        // 十字星形状的顶点定义
+        const vertices = new Float32Array([
+            // 十字星的外圈顶点
+            size * 0.0, size * 1.0, 0,    // 上
+            size * 0.3, size * 0.3, 0,    // 右上
+            size * 1.0, size * 0.0, 0,    // 右
+            size * 0.3, -size * 0.3, 0,   // 右下
+            size * 0.0, -size * 1.0, 0,   // 下
+            -size * 0.3, -size * 0.3, 0,  // 左下
+            -size * 1.0, size * 0.0, 0,   // 左
+            -size * 0.3, size * 0.3, 0,   // 左上
+            // 中心点
+            0, 0, 0
+        ]);
+        
+        // 定义面（三角形）
+        const indices = [
+            // 上部分
+            0, 1, 8,
+            1, 2, 8,
+            // 右部分
+            2, 3, 8,
+            3, 4, 8,
+            // 下部分
+            4, 5, 8,
+            5, 6, 8,
+            // 左部分
+            6, 7, 8,
+            7, 0, 8
+        ];
+        
+        geometry.setIndex(indices);
+        geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+        geometry.computeVertexNormals();
+        
         return geometry;
     }
 }
