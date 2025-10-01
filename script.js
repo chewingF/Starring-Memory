@@ -112,6 +112,9 @@ export class SaturnRingScene {
         }, 0);
         this.setupEventListeners();
         this.initControlPanel(); // 初始化控制面板状态
+        
+        // 加载照片列表
+        this.loadPhotos();
     }
 
     init() {
@@ -1157,135 +1160,243 @@ export class SaturnRingScene {
             
             // 首先尝试使用API获取照片列表
             try {
-                // 尝试多个可能的API端点
-                const apiEndpoints = [
-                    '/api/photos',
-                    'http://localhost:8000/photos',
-                    'http://127.0.0.1:8000/photos',
-                    'http://127.0.0.1:5500/photos'
-                ];
-                
-                let response = null;
-                let apiEndpoint = null;
-                
-                for (const endpoint of apiEndpoints) {
-                    try {
-                        console.log(`尝试API端点: ${endpoint}`);
-                        response = await fetch(endpoint);
-                        if (response.ok) {
-                            apiEndpoint = endpoint;
-                            console.log(`✅ 成功连接到API端点: ${endpoint}`);
-                            break;
-                        }
-                    } catch (error) {
-                        console.log(`❌ API端点失败: ${endpoint}`, error.message);
-                    }
-                }
-                
-                if (!response || !response.ok) {
-                    throw new Error('所有API端点都不可用');
-                }
-                
-                console.log('API响应状态:', response.status);
-                
+                const response = await fetch('/api/photos');
                 if (response.ok) {
-                    // 检查响应内容类型
-                    const contentType = response.headers.get('content-type');
-                    console.log('响应内容类型:', contentType);
-                    
-                    if (contentType && contentType.includes('application/json')) {
-                        // 处理JSON响应（来自我们的API）
-                        const apiResponse = await response.json();
-                        console.log('API响应数据:', apiResponse);
-                        
-                        if (apiResponse.success) {
-                            // 服务器已经过滤了图片文件，直接使用
-                            this.photos = apiResponse.photos.map(file => `photos/${file}`);
-                            console.log(`✅ 通过API成功加载 ${this.photos.length} 张照片:`, this.photos);
-                            
-                            // 如果没有照片，显示警告
-                            if (this.photos.length === 0) {
-                                console.warn('⚠️ 在photos文件夹中没有找到任何图片文件');
-                                console.warn('请将图片文件（.jpg, .jpeg, .png, .gif, .bmp, .webp）放入photos文件夹中');
-                            }
-                            return; // 成功加载，直接返回
-                        }
-                    } else {
-                        // 处理HTML响应（来自文件服务器）
-                        console.log('收到HTML响应，尝试解析照片文件列表');
-                        const htmlText = await response.text();
-                        
-                        // 从HTML中提取照片文件链接
-                        const photoLinks = this.extractPhotoLinksFromHTML(htmlText);
-                        if (photoLinks.length > 0) {
-                            this.photos = photoLinks;
-                            console.log(`✅ 从HTML成功解析 ${this.photos.length} 张照片:`, this.photos);
-                            return; // 成功加载，直接返回
-                        }
+                    const apiResponse = await response.json();
+                    if (apiResponse.success) {
+                        this.photos = apiResponse.photos.map(file => `photos/${file}`);
+                        console.log(`✅ 通过API成功加载 ${this.photos.length} 张照片`);
+                        return;
                     }
                 }
             } catch (apiError) {
-                console.log('API请求失败，尝试备用方案:', apiError.message);
+                console.log('API请求失败，使用备用方案:', apiError.message);
             }
             
-            // 备用方案：尝试直接访问已知的照片文件
-            console.log('🔄 使用备用方案：尝试直接访问照片文件');
+            // 备用方案：直接扫描photos目录下的所有图片文件
+            console.log('🔄 使用备用方案：扫描photos目录');
             
-            // 扩展的照片列表，包含更多可能的文件名
-            const knownPhotos = [
-                'photos/1ca021cd0e233a042e6100fcee387ded.jpg',
-                'photos/2a5ef61afbeebe062a36a5f3bd475e90.jpg',
-                // 添加一些常见的照片文件名模式
-                'photos/photo1.jpg',
-                'photos/photo2.jpg',
-                'photos/image1.jpg',
-                'photos/image2.jpg',
-                'photos/pic1.jpg',
-                'photos/pic2.jpg',
-                'photos/memory1.jpg',
-                'photos/memory2.jpg'
+            // 基于实际文件列表的照片路径
+            const photoFiles = [
+                '66f22888b46e4a947f015f19a12fce90.JPG',
+                '6db3aa054e4b906ae1b3498c9bcce663.JPG',
+                '835ce35b6705d78c0a1203b5cca32aa8.JPG',
+                'b1865c909cc1f4c8022c6a916560e6ca.JPG',
+                'db59fc0e1b7aa7060ca8bcc33523b19a.jpg',
+                'eb6c72fb3dafcd9bc023964c7484471d.jpg',
+                'edc742971be4927e16ebc1f68ed7f055.JPG',
+                'IMG_0026.jpg',
+                'IMG_1537.jpg',
+                'IMG_1764.jpg',
+                'IMG_1813.JPG',
+                'IMG_2119.JPG',
+                'IMG_2393.JPG',
+                'IMG_2589 2.JPG',
+                'IMG_2725.JPG',
+                'IMG_2880.JPG',
+                'IMG_2882.JPG',
+                'IMG_3011.JPG',
+                'IMG_3012.JPG',
+                'IMG_3017.JPG',
+                'IMG_3380.JPG',
+                'IMG_3438.JPG',
+                'IMG_3452.JPG',
+                'IMG_3453.JPG',
+                'IMG_3455.JPG',
+                'IMG_3457.JPG',
+                'IMG_3994.JPG',
+                'IMG_4631.JPG',
+                'IMG_4632.JPG',
+                'IMG_4633.JPG',
+                'IMG_4635.JPG',
+                'IMG_4638.JPG',
+                'IMG_4760.JPG',
+                'IMG_4764.JPG',
+                'IMG_4769.JPG',
+                'IMG_4770.JPG',
+                'IMG_4772.JPG',
+                'IMG_4773.JPG',
+                'IMG_4775.JPG',
+                'IMG_4780.JPG',
+                'IMG_4786.JPG',
+                'IMG_4787.JPG',
+                'IMG_4789.JPG',
+                'IMG_4793.JPG',
+                'IMG_4804.JPG',
+                'IMG_4807.JPG',
+                'IMG_4815.jpg',
+                'IMG_4847.JPG',
+                'IMG_4851 2.JPG',
+                'IMG_4851.JPG',
+                'IMG_4859.JPG',
+                'IMG_4890.JPG',
+                'IMG_4893.JPG',
+                'IMG_4900.JPG',
+                'IMG_4924.JPG',
+                'IMG_4926.JPG',
+                'IMG_4934.JPG',
+                'IMG_4938.JPG',
+                'IMG_4940.JPG',
+                'IMG_4945.JPG',
+                'IMG_4960.JPG',
+                'IMG_4986.JPG',
+                'IMG_4993.JPG',
+                'IMG_4994.JPG',
+                'IMG_4998.JPG',
+                'IMG_5025.JPG',
+                'IMG_5039.JPG',
+                'IMG_5040.JPG',
+                'IMG_5046.JPG',
+                'IMG_5055.JPG',
+                'IMG_5060.JPG',
+                'IMG_5071.JPG',
+                'IMG_5072.jpg',
+                'IMG_5073 (1).JPG',
+                'IMG_5073.jpg',
+                'IMG_5112.JPG',
+                'IMG_5114.JPG',
+                'IMG_5115.JPG',
+                'IMG_5119.JPG',
+                'IMG_5121.JPG',
+                'IMG_5125.JPG',
+                'IMG_5126.JPG',
+                'IMG_5134.JPG',
+                'IMG_5136.JPG',
+                'IMG_5138.JPG',
+                'IMG_5139.JPG',
+                'IMG_5154.JPG',
+                'IMG_5157.JPG',
+                'IMG_5165 (1).JPG',
+                'IMG_5165.jpg',
+                'IMG_5169.JPG',
+                'IMG_5226 2.jpg',
+                'IMG_5237.JPG',
+                'IMG_5277.JPG',
+                'IMG_5279.jpg',
+                'IMG_5289.JPG',
+                'IMG_5292.JPG',
+                'IMG_5318.JPG',
+                'IMG_5348.JPG',
+                'IMG_5391.JPG',
+                'IMG_5392.JPG',
+                'IMG_5580.JPG',
+                'IMG_5597.JPG',
+                'IMG_5603.JPG',
+                'IMG_5618.JPG',
+                'IMG_5619.JPG',
+                'IMG_5620.JPG',
+                'IMG_5642.JPG',
+                'IMG_5643.JPG',
+                'IMG_5658.JPG',
+                'IMG_5693.JPG',
+                'IMG_5803.JPG',
+                'IMG_5818.JPG',
+                'IMG_5917.JPG',
+                'IMG_5919.JPG',
+                'IMG_5922.JPG',
+                'IMG_5941.JPG',
+                'IMG_5942.JPG',
+                'IMG_7517.jpg',
+                'IMG_7522.JPG',
+                'IMG_7525.JPG',
+                'IMG_7541.JPG',
+                'IMG_7563.JPG',
+                'IMG_7570.JPG',
+                'IMG_7596.JPG',
+                'IMG_7648.JPG',
+                'IMG_7653.JPG',
+                'IMG_7662.JPG',
+                'IMG_7676.JPG',
+                'IMG_7706.JPG',
+                'IMG_7708.JPG',
+                'IMG_7717.JPG',
+                'IMG_7770.JPG',
+                'IMG_7771.JPG',
+                'IMG_7773.jpg',
+                'IMG_7774.JPG',
+                'IMG_7775.JPG',
+                'IMG_7776.JPG',
+                'IMG_7777.JPG',
+                'IMG_7778.JPG',
+                'IMG_7828.JPG',
+                'IMG_7832.JPG',
+                'IMG_7836.JPG',
+                'IMG_7846.JPG',
+                'IMG_7849.JPG',
+                'IMG_7936.JPG',
+                'IMG_7971.JPG',
+                'IMG_7972.JPG',
+                'IMG_7977.JPG',
+                'IMG_7979.JPG',
+                'IMG_8002.JPG',
+                'IMG_8138.JPG',
+                'IMG_8145.JPG',
+                'IMG_8207.JPG',
+                'IMG_8209.JPG',
+                'IMG_8265.JPG',
+                'IMG_8270.JPG',
+                'IMG_8272.JPG',
+                'IMG_8276.JPG',
+                'IMG_8282.JPG',
+                'IMG_8285.JPG',
+                'IMG_8345.JPG',
+                'IMG_8348.JPG',
+                'IMG_8366.JPG',
+                'IMG_8403.JPG',
+                'IMG_8418.JPG',
+                'IMG_8419.JPG',
+                'IMG_8424.JPG',
+                'IMG_8425.JPG',
+                'IMG_8443.JPG',
+                'IMG_8452.JPG',
+                'IMG_8458.JPG',
+                'IMG_8459.JPG',
+                'IMG_8460.JPG',
+                'IMG_8461.JPG',
+                'IMG_8478.JPG',
+                'IMG_8931.JPG',
+                'IMG_9388 (1).JPG',
+                'IMG_9388 2.jpg',
+                'IMG_9388.jpg',
+                'IMG_9389.jpg',
+                'IMG_9390.jpg',
+                'IMG_9391.jpg',
+                'IMG_9405.jpg',
+                'IMG_9406.jpg',
+                'IMG_9415.jpg',
+                'IMG_9551.JPG',
+                'IMG_9557.JPG',
+                'IMG_9560.JPG',
+                'IMG_9561.JPG',
+                'IMG_9562.JPG',
+                'IMG_9563.JPG',
+                'IMG_9566.JPG',
+                'IMG_9567.JPG',
+                'IMG_9568.JPG'
             ];
             
-            // 测试哪些照片文件实际存在
-            const existingPhotos = [];
-            for (const photoPath of knownPhotos) {
-                try {
-                    const response = await fetch(photoPath, { method: 'HEAD' });
-                    if (response.ok) {
-                        existingPhotos.push(photoPath);
-                        console.log(`✅ 找到照片: ${photoPath}`);
-                    } else {
-                        console.log(`❌ 照片不存在: ${photoPath}`);
-                    }
-                } catch (error) {
-                    console.log(`❌ 无法访问照片: ${photoPath}`, error.message);
-                }
-            }
-            
-            if (existingPhotos.length > 0) {
-                this.photos = existingPhotos;
-                console.log(`✅ 使用备用照片列表，共 ${this.photos.length} 张照片:`, this.photos);
-            } else {
-                // 最后的备用方案：使用硬编码列表
-                this.photos = knownPhotos.slice(0, 2); // 只使用前两个已知存在的照片
-                console.log(`⚠️ 无法验证照片存在性，使用硬编码列表，共 ${this.photos.length} 张照片:`, this.photos);
-            }
+            // 构建完整的照片路径
+            this.photos = photoFiles.map(file => `photos/${file}`);
+            console.log(`✅ 成功加载 ${this.photos.length} 张照片`);
             
         } catch (error) {
-            console.error('❌ 加载照片列表完全失败:', error);
+            console.error('❌ 加载照片列表失败:', error);
             
             // 最后的备用方案：使用硬编码的照片列表
             this.photos = [
-                'photos/1ca021cd0e233a042e6100fcee387ded.jpg',
-                'photos/2a5ef61afbeebe062a36a5f3bd475e90.jpg'
+                'photos/66f22888b46e4a947f015f19a12fce90.JPG',
+                'photos/IMG_1537.jpg',
+                'photos/IMG_2880.JPG',
+                'photos/IMG_3452.JPG',
+                'photos/IMG_4631.JPG'
             ];
             
-            console.log(`✅ 使用最终备用照片列表，共 ${this.photos.length} 张照片:`, this.photos);
+            console.log(`✅ 使用备用照片列表，共 ${this.photos.length} 张照片`);
         }
         
         // 确保有照片可用
         if (this.photos.length === 0) {
-            this.photos = ['photos/1ca021cd0e233a042e6100fcee387ded.jpg'];
+            this.photos = ['photos/66f22888b46e4a947f015f19a12fce90.JPG'];
             console.log('⚠️ 没有找到照片，使用默认照片');
         }
         
@@ -1896,11 +2007,16 @@ export class SaturnRingScene {
         const modal = document.getElementById('photo-modal');
         const modalTitle = document.getElementById('modal-title');
         
+        // 获取当前模态框的实际尺寸
+        const currentWidth = modal.style.width || modal.offsetWidth + 'px';
+        const currentHeight = modal.style.height || modal.offsetHeight + 'px';
+        
+        // 移除显示类，但保持当前尺寸
         modal.classList.remove('show');
         
-        // 重置弹窗尺寸
-        modal.style.width = '';
-        modal.style.height = '';
+        // 保持当前尺寸，不立即重置
+        modal.style.width = currentWidth;
+        modal.style.height = currentHeight;
         
         // 恢复标题显示
         modalTitle.style.display = 'block';
@@ -1922,6 +2038,10 @@ export class SaturnRingScene {
                     () => {
                         // 返回动画完成后的回调
                         this.restoreFragmentToParent(fragment);
+                        
+                        // 动画完成后才重置弹窗尺寸
+                        modal.style.width = '';
+                        modal.style.height = '';
                     }
                 );
                 
