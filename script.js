@@ -1,5 +1,6 @@
 // 导入Three.js模块
 import * as THREE from 'three';
+import { MeteorShowerManager } from './src/background/MeteorShowerManager.js';
 
 export class SaturnRingScene {
     constructor() {
@@ -103,6 +104,9 @@ export class SaturnRingScene {
         // 后处理效果管理器
         this.postProcessingManager = null;
         
+        // 流星雨管理器
+        this.meteorShowerManager = null;
+        
         this.init();
         // 延迟启动动画循环，让子类有机会覆盖animate方法
         setTimeout(() => {
@@ -172,6 +176,10 @@ export class SaturnRingScene {
         
         // 初始化后处理管理器 - 异步创建，完全按照test-pixel-effect的方式
         this.initPostProcessingSync();
+        
+        // 初始化流星雨管理器
+        this.meteorShowerManager = new MeteorShowerManager(this.scene);
+        this.meteorShowerManager.init();
     }
 
 
@@ -1767,10 +1775,78 @@ export class SaturnRingScene {
         // Toon模式控制
         this.setupToonControls();
         
+        // 流星雨效果控制
+        this.setupMeteorShowerControls();
+        
         // 添加调试快捷键
         this.setupDebugControls();
     }
-
+    
+    // 设置流星雨效果控制
+    setupMeteorShowerControls() {
+        // 流星雨开关
+        const meteorShowerToggle = document.getElementById('meteorShowerToggle');
+        if (meteorShowerToggle) {
+            meteorShowerToggle.addEventListener('change', (e) => {
+                if (this.meteorShowerManager) {
+                    this.meteorShowerManager.toggle();
+                }
+            });
+        }
+        
+        // 流星数量控制
+        const meteorCountSlider = document.getElementById('meteorCount');
+        const meteorCountValue = document.getElementById('meteorCountValue');
+        if (meteorCountSlider && meteorCountValue) {
+            meteorCountSlider.addEventListener('input', (e) => {
+                const value = parseInt(e.target.value);
+                meteorCountValue.textContent = value;
+                if (this.meteorShowerManager) {
+                    this.meteorShowerManager.setMeteorCount(value);
+                }
+            });
+        }
+        
+        // 生成频率控制
+        const meteorSpawnRateSlider = document.getElementById('meteorSpawnRate');
+        const meteorSpawnRateValue = document.getElementById('meteorSpawnRateValue');
+        if (meteorSpawnRateSlider && meteorSpawnRateValue) {
+            meteorSpawnRateSlider.addEventListener('input', (e) => {
+                const value = parseFloat(e.target.value);
+                meteorSpawnRateValue.textContent = value.toFixed(1);
+                if (this.meteorShowerManager) {
+                    this.meteorShowerManager.setSpawnRate(value);
+                }
+            });
+        }
+        
+        // 流星速度控制
+        const meteorSpeedSlider = document.getElementById('meteorSpeed');
+        const meteorSpeedValue = document.getElementById('meteorSpeedValue');
+        if (meteorSpeedSlider && meteorSpeedValue) {
+            meteorSpeedSlider.addEventListener('input', (e) => {
+                const value = parseFloat(e.target.value);
+                meteorSpeedValue.textContent = value.toFixed(1);
+                if (this.meteorShowerManager) {
+                    this.meteorShowerManager.setMeteorSpeed(value);
+                }
+            });
+        }
+        
+        // 拖尾长度控制
+        const meteorLengthSlider = document.getElementById('meteorLength');
+        const meteorLengthValue = document.getElementById('meteorLengthValue');
+        if (meteorLengthSlider && meteorLengthValue) {
+            meteorLengthSlider.addEventListener('input', (e) => {
+                const value = parseFloat(e.target.value);
+                meteorLengthValue.textContent = value.toFixed(1);
+                if (this.meteorShowerManager) {
+                    this.meteorShowerManager.setMeteorLength(value);
+                }
+            });
+        }
+    }
+    
     // 设置后处理效果控制
     setupPostProcessingControls() {
         // 后处理模式选择
@@ -2128,6 +2204,11 @@ export class SaturnRingScene {
         
         // 更新流星动画
         this.updateMeteorAnimations();
+        
+        // 更新流星雨效果
+        if (this.meteorShowerManager) {
+            this.meteorShowerManager.update(deltaTime);
+        }
         
         // 星星碎片动画
         this.starFragments.forEach((fragment, index) => {
